@@ -14,7 +14,7 @@ namespace Genius.Core.Abstractions
         }
 
         public abstract Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, CancellationToken cancellationToken = default);
-        public abstract IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        public abstract IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, CancellationToken cancellationToken = default);
 
         protected virtual List<ChatMessage> ValidateMessages(IEnumerable<ChatMessage> messages, long maxRequestSize)
         {
