@@ -1,7 +1,7 @@
-﻿using Genius.Core.Abstractions.Models;
+using FluentAI.Abstractions.Models;
 using System.Runtime.CompilerServices;
 
-namespace Genius.Core.Abstractions
+namespace FluentAI.Abstractions
 {
     /// <summary>
     /// Defines the core contract for a generative AI chat model.

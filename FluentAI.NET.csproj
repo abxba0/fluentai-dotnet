@@ -4,10 +4,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	  <PackageId>Genius.Core</PackageId>
+	  <PackageId>FluentAI.NET</PackageId>
 	  <Version>1.0.0</Version>
 	  <Authors>abxba</Authors>
-	  <Description>A production-ready, extensible .NET SDK for interacting with multiple AI providers.</Description>
+	  <Description>FluentAI.NET - Universal AI SDK for .NET. Lightweight, provider-agnostic SDK that unifies access to multiple AI chat models under a single, clean API.</Description>
 	  <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

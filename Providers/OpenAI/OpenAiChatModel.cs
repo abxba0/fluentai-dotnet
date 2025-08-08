@@ -1,14 +1,14 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
-using Genius.Core.Abstractions;
-using Genius.Core.Abstractions.Exceptions;
-using Genius.Core.Abstractions.Models;
-using Genius.Core.Configuration;
+using FluentAI.Abstractions;
+using FluentAI.Abstractions.Exceptions;
+using FluentAI.Abstractions.Models;
+using FluentAI.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Runtime.CompilerServices;
 
-namespace Genius.Core.Providers.OpenAI
+namespace FluentAI.Providers.OpenAI
 {
     internal class OpenAiChatModel : ChatModelBase
     {
@@ -132,9 +132,9 @@ namespace Genius.Core.Providers.OpenAI
         {
             return message.Role switch
             {
-                Genius.Core.Abstractions.Models.ChatRole.User => new ChatRequestUserMessage(message.Content),
-                Genius.Core.Abstractions.Models.ChatRole.Assistant => new ChatRequestAssistantMessage(message.Content),
-                Genius.Core.Abstractions.Models.ChatRole.System => new ChatRequestSystemMessage(message.Content),
+                FluentAI.Abstractions.Models.ChatRole.User => new ChatRequestUserMessage(message.Content),
+                FluentAI.Abstractions.Models.ChatRole.Assistant => new ChatRequestAssistantMessage(message.Content),
+                FluentAI.Abstractions.Models.ChatRole.System => new ChatRequestSystemMessage(message.Content),
                 _ => throw new ArgumentException($"Unsupported chat role: {message.Role}")
             };
         }
