@@ -1,5 +1,5 @@
 ﻿// ServiceCollectionExtensions.cs
-using FluentAI.NET.Providers.OpenAI;
+using Genius.Core.Providers.OpenAI;
 using Genius.Core.Abstractions;
 using Genius.Core.Abstractions.Exceptions;
 using Genius.Core.Configuration;

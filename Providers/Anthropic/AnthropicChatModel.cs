@@ -42,7 +42,20 @@ namespace Genius.Core.Providers.Anthropic
 
                 return ProcessResponse(response);
             }
-            // ... (Exception handling)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Anthropic API request failed with status {Status}", ex.Data["StatusCode"]);
+                throw new AiSdkException($"Anthropic API request failed: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error during Anthropic chat completion");
+                throw new AiSdkException($"Unexpected error: {ex.Message}", ex);
+            }
         }
 
         public override async IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
