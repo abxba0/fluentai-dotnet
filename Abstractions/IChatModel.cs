@@ -16,6 +16,6 @@ namespace Genius.Core.Abstractions
         /// <summary>
         /// Streams a response from the model token-by-token.
         /// </summary>
-        IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, CancellationToken cancellationToken = default);
     }
 }
