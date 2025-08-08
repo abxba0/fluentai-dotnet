@@ -82,10 +82,156 @@ namespace Genius.Core.Providers.Anthropic
             string? line;
             while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
             {
-                // ... (Stream parsing logic remains, with fail-fast on JsonException)
+                if (line.StartsWith("data: "))
+                {
+                    var jsonData = line[6..]; // Remove "data: " prefix
+                    if (jsonData != "[DONE]")
+                    {
+                        var text = ParseStreamChunk(jsonData);
+                        if (!string.IsNullOrEmpty(text))
+                        {
+                            yield return text;
+                        }
+                    }
+                }
             }
         }
 
-        // ... (Other private methods: SendRequestAsync, PrepareRequest, ProcessResponse, etc. remain the same)
+        private string? ParseStreamChunk(string jsonData)
+        {
+            try
+            {
+                using var jsonDoc = JsonDocument.Parse(jsonData);
+                if (jsonDoc.RootElement.TryGetProperty("delta", out var delta) &&
+                    delta.TryGetProperty("text", out var text))
+                {
+                    return text.GetString();
+                }
+            }
+            catch (JsonException)
+            {
+                // Skip malformed JSON
+            }
+            return null;
+        }
+
+        private void ValidateConfiguration(AnthropicOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.ApiKey))
+                throw new AiSdkConfigurationException("Anthropic API key is required");
+
+            if (string.IsNullOrWhiteSpace(options.Model))
+                throw new AiSdkConfigurationException("Anthropic model is required");
+        }
+
+        private object PrepareRequest(IEnumerable<ChatMessage> messages, bool stream, AnthropicOptions configOptions, ChatRequestOptions? requestOptions)
+        {
+            var messageList = base.ValidateMessages(messages, configOptions.MaxRequestSize);
+            var providerOptions = requestOptions as AnthropicRequestOptions;
+
+            var anthropicMessages = new List<object>();
+            string? systemPrompt = null;
+
+            foreach (var message in messageList)
+            {
+                if (message.Role == ChatRole.System)
+                {
+                    systemPrompt = message.Content;
+                }
+                else
+                {
+                    anthropicMessages.Add(new
+                    {
+                        role = message.Role == ChatRole.User ? "user" : "assistant",
+                        content = message.Content
+                    });
+                }
+            }
+
+            var request = new
+            {
+                model = configOptions.Model,
+                max_tokens = providerOptions?.MaxTokens ?? configOptions.MaxTokens ?? 1000,
+                messages = anthropicMessages,
+                stream = stream
+            };
+
+            // Add optional parameters
+            var requestDict = new Dictionary<string, object>
+            {
+                ["model"] = request.model,
+                ["max_tokens"] = request.max_tokens,
+                ["messages"] = request.messages,
+                ["stream"] = request.stream
+            };
+
+            if (!string.IsNullOrEmpty(systemPrompt) || !string.IsNullOrEmpty(providerOptions?.SystemPrompt))
+            {
+                requestDict["system"] = providerOptions?.SystemPrompt ?? systemPrompt ?? string.Empty;
+            }
+
+            if (providerOptions?.Temperature.HasValue == true)
+            {
+                requestDict["temperature"] = providerOptions.Temperature.Value;
+            }
+
+            return requestDict;
+        }
+
+        private async Task<HttpResponseMessage> SendRequestAsync(object requestDto, AnthropicOptions options, CancellationToken cancellationToken)
+        {
+            var httpClient = _httpClientFactory.CreateClient("AnthropicClient");
+            
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/messages")
+            {
+                Content = JsonContent.Create(requestDto)
+            };
+            request.Headers.Add("x-api-key", options.ApiKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+
+            return await httpClient.SendAsync(request, cancellationToken);
+        }
+
+        private ChatResponse ProcessResponse(HttpResponseMessage response)
+        {
+            var content = response.Content.ReadAsStringAsync().Result;
+            using var jsonDoc = JsonDocument.Parse(content);
+            var root = jsonDoc.RootElement;
+
+            var messageContent = string.Empty;
+            if (root.TryGetProperty("content", out var contentArray) && 
+                contentArray.ValueKind == JsonValueKind.Array && 
+                contentArray.GetArrayLength() > 0)
+            {
+                var firstContent = contentArray[0];
+                if (firstContent.TryGetProperty("text", out var textProp))
+                {
+                    messageContent = textProp.GetString() ?? string.Empty;
+                }
+            }
+
+            var modelId = root.TryGetProperty("model", out var modelProp) ? modelProp.GetString() ?? "unknown" : "unknown";
+            var finishReason = root.TryGetProperty("stop_reason", out var stopProp) ? stopProp.GetString() ?? "unknown" : "unknown";
+
+            var inputTokens = 0;
+            var outputTokens = 0;
+            if (root.TryGetProperty("usage", out var usageProp))
+            {
+                if (usageProp.TryGetProperty("input_tokens", out var inputProp))
+                    inputTokens = inputProp.GetInt32();
+                if (usageProp.TryGetProperty("output_tokens", out var outputProp))
+                    outputTokens = outputProp.GetInt32();
+            }
+
+            return new ChatResponse(
+                Content: messageContent,
+                ModelId: modelId,
+                FinishReason: finishReason,
+                Usage: new TokenUsage(
+                    InputTokens: inputTokens,
+                    OutputTokens: outputTokens
+                )
+            );
+        }
     }
 }
