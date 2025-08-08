@@ -1,7 +1,7 @@
-﻿using Genius.Core.Abstractions;
-using Genius.Core.Abstractions.Exceptions;
-using Genius.Core.Abstractions.Models;
-using Genius.Core.Configuration;
+﻿using FluentAI.Abstractions;
+using FluentAI.Abstractions.Exceptions;
+using FluentAI.Abstractions.Models;
+using FluentAI.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text;
 
-namespace Genius.Core.Providers.Anthropic
+namespace FluentAI.Providers.Anthropic
 {
     internal class AnthropicChatModel : ChatModelBase
     {
