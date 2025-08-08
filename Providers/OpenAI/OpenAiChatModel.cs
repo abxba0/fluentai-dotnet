@@ -8,15 +8,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Runtime.CompilerServices;
 
-namespace FluentAI.NET.Providers.OpenAI
+namespace Genius.Core.Providers.OpenAI
 {
     internal class OpenAiChatModel : ChatModelBase
     {
         private readonly IOptionsMonitor<OpenAiOptions> _optionsMonitor;
 
-        // **VERIFIED FIX**: Cache the client for performance and re-create it only when critical configuration changes.
-        private OpenAIClient? _cachedClient;
-        private OpenAiOptions? _cachedOptions;
+        // **VERIFIED FIX**: Use Lazy<T> for thread-safe client initialization and caching
+        private Lazy<OpenAIClient>? _lazyClient;
+        private string? _cachedConfigHash;
         private readonly object _clientLock = new();
 
         public OpenAiChatModel(IOptionsMonitor<OpenAiOptions> optionsMonitor, ILogger<OpenAiChatModel> logger) : base(logger)
@@ -46,7 +46,20 @@ namespace FluentAI.NET.Providers.OpenAI
 
                 return ProcessResponse(response.Value);
             }
-            // ... (Exception handling remains the same)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (RequestFailedException ex)
+            {
+                Logger.LogError(ex, "OpenAI API request failed with status {Status}", ex.Status);
+                throw new AiSdkException($"OpenAI API request failed: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error during OpenAI chat completion");
+                throw new AiSdkException($"Unexpected error: {ex.Message}", ex);
+            }
         }
 
         public override async IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -73,17 +86,23 @@ namespace FluentAI.NET.Providers.OpenAI
 
         private OpenAIClient GetOrCreateClient(OpenAiOptions options)
         {
+            // Create a hash of critical configuration properties to detect changes
+            var configHash = $"{options.ApiKey}|{options.Endpoint}|{options.IsAzureOpenAI}";
+
             lock (_clientLock)
             {
-                if (_cachedClient == null || options.ApiKey != _cachedOptions?.ApiKey || options.Endpoint != _cachedOptions?.Endpoint)
+                // If configuration changed or client not initialized, create new lazy client
+                if (_lazyClient == null || _cachedConfigHash != configHash)
                 {
                     Logger.LogInformation("Creating new OpenAIClient instance due to configuration change or first use.");
-                    _cachedClient = options.IsAzureOpenAI
-                        ? new OpenAIClient(new Uri(options.Endpoint!), new AzureKeyCredential(options.ApiKey))
-                        : new OpenAIClient(options.ApiKey);
-                    _cachedOptions = options;
+                    _cachedConfigHash = configHash;
+                    _lazyClient = new Lazy<OpenAIClient>(() => 
+                        options.IsAzureOpenAI
+                            ? new OpenAIClient(new Uri(options.Endpoint!), new AzureKeyCredential(options.ApiKey))
+                            : new OpenAIClient(options.ApiKey),
+                        LazyThreadSafetyMode.ExecutionAndPublication);
                 }
-                return _cachedClient;
+                return _lazyClient.Value;
             }
         }
 
@@ -92,14 +111,61 @@ namespace FluentAI.NET.Providers.OpenAI
             var messageList = base.ValidateMessages(messages, configOptions.MaxRequestSize);
             var providerOptions = requestOptions as OpenAiRequestOptions;
 
-            return new ChatCompletionsOptions
+            var chatOptions = new ChatCompletionsOptions
             {
                 DeploymentName = configOptions.Model,
                 Temperature = providerOptions?.Temperature,
                 // **VERIFIED FIX**: Added consistent MaxTokens configuration
-                MaxTokens = providerOptions?.MaxTokens ?? configOptions.MaxTokens,
-                TopP = providerOptions?.TopP
+                MaxTokens = providerOptions?.MaxTokens ?? configOptions.MaxTokens
             };
+
+            // Convert ChatMessage to ChatRequestMessage
+            foreach (var message in messageList)
+            {
+                chatOptions.Messages.Add(MapToChatRequestMessage(message));
+            }
+
+            return chatOptions;
+        }
+
+        private Azure.AI.OpenAI.ChatRequestMessage MapToChatRequestMessage(ChatMessage message)
+        {
+            return message.Role switch
+            {
+                Genius.Core.Abstractions.Models.ChatRole.User => new ChatRequestUserMessage(message.Content),
+                Genius.Core.Abstractions.Models.ChatRole.Assistant => new ChatRequestAssistantMessage(message.Content),
+                Genius.Core.Abstractions.Models.ChatRole.System => new ChatRequestSystemMessage(message.Content),
+                _ => throw new ArgumentException($"Unsupported chat role: {message.Role}")
+            };
+        }
+
+        private ChatResponse ProcessResponse(Azure.AI.OpenAI.ChatCompletions response)
+        {
+            var choice = response.Choices.FirstOrDefault();
+            if (choice == null)
+                throw new AiSdkException("No response choices returned from OpenAI API");
+
+            return new ChatResponse(
+                Content: choice.Message?.Content ?? string.Empty,
+                ModelId: response.Model ?? "unknown",
+                FinishReason: choice.FinishReason?.ToString() ?? "unknown",
+                Usage: new TokenUsage(
+                    InputTokens: response.Usage?.PromptTokens ?? 0,
+                    OutputTokens: response.Usage?.CompletionTokens ?? 0
+                )
+            );
+        }
+
+        private void ValidateConfiguration(OpenAiOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.ApiKey))
+                throw new AiSdkConfigurationException("OpenAI API key is required");
+
+            if (string.IsNullOrWhiteSpace(options.Model))
+                throw new AiSdkConfigurationException("OpenAI model is required");
+
+            if (options.IsAzureOpenAI && string.IsNullOrWhiteSpace(options.Endpoint))
+                throw new AiSdkConfigurationException("Azure OpenAI endpoint is required when using Azure OpenAI");
         }
 
         // ... (ProcessResponse, ValidateConfiguration, MapRole methods remain the same)

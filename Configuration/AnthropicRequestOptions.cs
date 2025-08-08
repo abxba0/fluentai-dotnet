@@ -1,6 +1,8 @@
 ﻿using Genius.Core.Abstractions.Models;
 
-public class AnthropicRequestOptions : ChatRequestOptions
+namespace Genius.Core.Configuration;
+
+public record AnthropicRequestOptions : ChatRequestOptions
 {
     public float? Temperature { get; set; }
     public int? MaxTokens { get; set; }
