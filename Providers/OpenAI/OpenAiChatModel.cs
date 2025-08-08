@@ -46,7 +46,20 @@ namespace FluentAI.NET.Providers.OpenAI
 
                 return ProcessResponse(response.Value);
             }
-            // ... (Exception handling remains the same)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (RequestFailedException ex)
+            {
+                Logger.LogError(ex, "OpenAI API request failed");
+                throw new AiSdkException($"OpenAI API request failed: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error during OpenAI chat completion");
+                throw new AiSdkException($"Unexpected error during OpenAI chat completion: {ex.Message}", ex);
+            }
         }
 
         public override async IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
