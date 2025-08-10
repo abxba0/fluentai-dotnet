@@ -3,8 +3,25 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/FluentAI.NET.svg)](https://www.nuget.org/packages/FluentAI.NET/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-235%20passing-brightgreen.svg)]()
 
 FluentAI.NET is a lightweight, provider-agnostic SDK that unifies access to multiple AI chat models under a single, clean API. Built for .NET developers who want to integrate AI capabilities without vendor lock-in or complex configuration.
+
+## 📋 Table of Contents
+
+- [✨ Key Features](#-key-features)
+- [🚀 Supported Providers](#-supported-providers)
+- [📦 Installation](#-installation)
+- [🎯 Quick Start](#-quick-start)
+- [🔧 Advanced Usage](#-advanced-usage)
+- [🏗️ Architecture](#️-architecture)
+- [🔌 Extending with Custom Providers](#-extending-with-custom-providers)
+- [📖 API Reference](#-api-reference)
+- [🧪 Testing](#-testing)
+- [📄 License](#-license)
+- [🤝 Contributing](#-contributing)
+- [🆘 Support](#-support)
 
 ## ✨ Key Features
 
@@ -26,17 +43,33 @@ FluentAI.NET is a lightweight, provider-agnostic SDK that unifies access to mult
 ## 📦 Installation
 
 ```bash
-# Core package
+# Single package includes all providers
 dotnet add package FluentAI.NET
-
-# Provider packages (install as needed)
-dotnet add package FluentAI.NET.OpenAI
-dotnet add package FluentAI.NET.Anthropic
 ```
+
+**Note**: All providers (OpenAI, Anthropic, Google, HuggingFace) are included in the main package - no additional provider packages needed.
 
 ## 🎯 Quick Start
 
-### 1. Configure Services (ASP.NET Core)
+### 1. Set Up API Keys
+
+First, set your API keys as environment variables:
+
+```bash
+# For OpenAI
+export OPENAI_API_KEY="your-openai-api-key"
+
+# For Anthropic  
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# For Google
+export GOOGLE_API_KEY="your-google-api-key"
+
+# For HuggingFace
+export HUGGINGFACE_API_KEY="your-huggingface-api-key"
+```
+
+### 2. Configure Services (ASP.NET Core)
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -46,12 +79,18 @@ builder.Services
     .AddFluentAI()
     .AddOpenAI(config => config.ApiKey = "your-openai-key")
     .AddAnthropic(config => config.ApiKey = "your-anthropic-key")
+    .AddGoogle(config => config.ApiKey = "your-google-key")
+    .AddHuggingFace(config => 
+    {
+        config.ApiKey = "your-huggingface-key";
+        config.ModelId = "microsoft/DialoGPT-large";
+    })
     .UseDefaultProvider("OpenAI");
 
 var app = builder.Build();
 ```
 
-### 2. Use in Your Code
+### 3. Use in Your Code
 
 ```csharp
 public class ChatController : ControllerBase
@@ -91,7 +130,16 @@ public class ChatController : ControllerBase
 }
 ```
 
-### 3. Configuration-Based Setup
+### 4. Console Application Example
+
+For a complete working example, see the [Console App Example](Examples/ConsoleApp/README.md) included in this repository:
+
+```bash
+cd Examples/ConsoleApp
+dotnet run
+```
+
+### 5. Configuration-Based Setup
 
 ```json
 // appsettings.json
@@ -108,6 +156,16 @@ public class ChatController : ControllerBase
     "ApiKey": "your-key-here", 
     "Model": "claude-3-sonnet-20240229",
     "MaxTokens": 1000
+  },
+  "Google": {
+    "ApiKey": "your-key-here",
+    "Model": "gemini-pro",
+    "MaxTokens": 1000
+  },
+  "HuggingFace": {
+    "ApiKey": "your-key-here",
+    "ModelId": "microsoft/DialoGPT-large",
+    "MaxTokens": 1000
   }
 }
 ```
@@ -117,7 +175,9 @@ public class ChatController : ControllerBase
 builder.Services
     .AddAiSdk(builder.Configuration)
     .AddOpenAiChatModel(builder.Configuration)
-    .AddAnthropicChatModel(builder.Configuration);
+    .AddAnthropicChatModel(builder.Configuration)
+    .AddGoogleGeminiChatModel(builder.Configuration)
+    .AddHuggingFaceChatModel(builder.Configuration);
 ```
 
 ## 🔧 Advanced Usage
@@ -137,6 +197,20 @@ var response = await chatModel.GetResponseAsync(messages, new AnthropicRequestOp
 {
     SystemPrompt = "You are a helpful assistant.",
     Temperature = 0.5f
+});
+
+// Google Gemini with custom options
+var response = await chatModel.GetResponseAsync(messages, new GoogleRequestOptions
+{
+    Temperature = 0.8f,
+    MaxTokens = 750
+});
+
+// HuggingFace with custom model
+var response = await chatModel.GetResponseAsync(messages, new HuggingFaceRequestOptions
+{
+    Temperature = 0.6f,
+    MaxTokens = 400
 });
 ```
 
@@ -158,6 +232,8 @@ public class MultiProviderService
         {
             "openai" => _serviceProvider.GetRequiredService<OpenAiChatModel>(),
             "anthropic" => _serviceProvider.GetRequiredService<AnthropicChatModel>(),
+            "google" => _serviceProvider.GetRequiredService<GoogleGeminiChatModel>(),
+            "huggingface" => _serviceProvider.GetRequiredService<HuggingFaceChatModel>(),
             _ => throw new ArgumentException($"Provider {providerName} not supported")
         };
 
@@ -242,6 +318,8 @@ public class CustomChatModel : ChatModelBase
 
 - **`OpenAiRequestOptions`** - Temperature, MaxTokens, etc.
 - **`AnthropicRequestOptions`** - SystemPrompt, Temperature, etc.
+- **`GoogleRequestOptions`** - Temperature, MaxTokens, etc.  
+- **`HuggingFaceRequestOptions`** - Temperature, MaxTokens, etc.
 
 ## 🧪 Testing
 
