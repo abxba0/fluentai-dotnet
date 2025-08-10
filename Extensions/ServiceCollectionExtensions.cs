@@ -5,6 +5,7 @@ using FluentAI.Abstractions.Exceptions;
 using FluentAI.Configuration;
 using FluentAI.Providers.Anthropic;
 using FluentAI.Providers.Google;
+using FluentAI.Providers.HuggingFace;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -52,6 +53,8 @@ namespace FluentAI.Extensions
                                    ?? throw new AiSdkConfigurationException("Anthropic is configured as default, but was not registered. Call .AddAnthropicChatModel()."),
                     "google" => serviceProvider.GetService<GoogleGeminiChatModel>()
                                ?? throw new AiSdkConfigurationException("Google is configured as default, but was not registered. Call .AddGoogleGeminiChatModel()."),
+                    "huggingface" => serviceProvider.GetService<HuggingFaceChatModel>()
+                                    ?? throw new AiSdkConfigurationException("Hugging Face is configured as default, but was not registered. Call .AddHuggingFaceChatModel()."),
                     _ => throw new AiSdkConfigurationException($"Default provider '{providerName}' is not supported or registered.")
                 };
             });
@@ -102,6 +105,20 @@ namespace FluentAI.Extensions
             services.AddSingleton<GoogleGeminiChatModel>();
             return services;
         }
+
+        /// <summary>
+        /// Adds Hugging Face chat model provider to the dependency injection container.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>The service collection for chaining.</returns>
+        public static IServiceCollection AddHuggingFaceChatModel(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<HuggingFaceOptions>(configuration.GetSection("HuggingFace"));
+            services.AddHttpClient("HuggingFaceClient");
+            services.AddSingleton<HuggingFaceChatModel>();
+            return services;
+        }
     }
 
     /// <summary>
@@ -134,6 +151,13 @@ namespace FluentAI.Extensions
         /// <param name="configure">Configuration action for Google options.</param>
         /// <returns>The builder for chaining.</returns>
         IFluentAiBuilder AddGoogle(Action<GoogleOptions> configure);
+
+        /// <summary>
+        /// Adds Hugging Face provider to the FluentAI configuration.
+        /// </summary>
+        /// <param name="configure">Configuration action for Hugging Face options.</param>
+        /// <returns>The builder for chaining.</returns>
+        IFluentAiBuilder AddHuggingFace(Action<HuggingFaceOptions> configure);
 
         /// <summary>
         /// Sets the default provider to use when multiple providers are registered.
@@ -227,6 +251,26 @@ namespace FluentAI.Extensions
             return this;
         }
 
+        public IFluentAiBuilder AddHuggingFace(Action<HuggingFaceOptions> configure)
+        {
+            var options = new HuggingFaceOptions();
+            configure(options);
+
+            Services.Configure<HuggingFaceOptions>(opt =>
+            {
+                opt.ApiKey = options.ApiKey;
+                opt.ModelId = options.ModelId;
+                opt.RequestTimeout = options.RequestTimeout;
+                opt.MaxRetries = options.MaxRetries;
+                opt.MaxRequestSize = options.MaxRequestSize;
+            });
+
+            Services.AddHttpClient("HuggingFaceClient");
+            Services.AddSingleton<HuggingFaceChatModel>();
+            
+            return this;
+        }
+
         public IFluentAiBuilder UseDefaultProvider(string providerName)
         {
             _defaultProvider = providerName;
@@ -242,6 +286,8 @@ namespace FluentAI.Extensions
                                    ?? throw new AiSdkConfigurationException("Anthropic is configured as default, but was not registered. Call .AddAnthropic()."),
                     "google" => serviceProvider.GetService<GoogleGeminiChatModel>()
                                ?? throw new AiSdkConfigurationException("Google is configured as default, but was not registered. Call .AddGoogle()."),
+                    "huggingface" => serviceProvider.GetService<HuggingFaceChatModel>()
+                                    ?? throw new AiSdkConfigurationException("Hugging Face is configured as default, but was not registered. Call .AddHuggingFace()."),
                     _ => throw new AiSdkConfigurationException($"Default provider '{providerName}' is not supported or registered.")
                 };
             });
