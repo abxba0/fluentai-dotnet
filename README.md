@@ -19,9 +19,8 @@ FluentAI.NET is a lightweight, provider-agnostic SDK that unifies access to mult
 
 - **OpenAI** (GPT-3.5, GPT-4, GPT-4o)
 - **Anthropic** (Claude 3 Sonnet, Haiku, Opus)  
-- **Google AI** (Gemini Pro, Gemini Flash) *[Coming Soon]*
-- **HuggingFace** (Transformers, Inference API) *[Coming Soon]*
-- **Local Models** (Ollama, LM Studio, Custom APIs) *[Coming Soon]*
+- **Google AI** (Gemini Pro, Gemini Flash) 
+- **HuggingFace** (Transformers, Inference API)
 - Extensible architecture for any HTTP-based AI service
 
 ## 📦 Installation
