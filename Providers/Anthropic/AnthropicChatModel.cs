@@ -8,13 +8,18 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace FluentAI.Providers.Anthropic
 {
-    internal class AnthropicChatModel : ChatModelBase
+    internal class AnthropicChatModel : ChatModelBase, IDisposable
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IOptionsMonitor<AnthropicOptions> _optionsMonitor;
+        
+        // Rate limiting
+        private FixedWindowRateLimiter? _rateLimiter;
+        private readonly object _rateLimiterLock = new();
 
         public AnthropicChatModel(IHttpClientFactory httpClientFactory, IOptionsMonitor<AnthropicOptions> optionsMonitor, ILogger<AnthropicChatModel> logger) : base(logger)
         {
@@ -26,6 +31,9 @@ namespace FluentAI.Providers.Anthropic
         {
             var currentOptions = _optionsMonitor.CurrentValue;
             ValidateConfiguration(currentOptions);
+
+            // Rate limiting
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
 
             var requestDto = PrepareRequest(messages, false, currentOptions, options);
 
@@ -62,6 +70,10 @@ namespace FluentAI.Providers.Anthropic
         {
             var currentOptions = _optionsMonitor.CurrentValue;
             ValidateConfiguration(currentOptions);
+            
+            // Rate limiting
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
+            
             var requestDto = PrepareRequest(messages, true, currentOptions, options);
             var httpClient = _httpClientFactory.CreateClient("AnthropicClient");
 
@@ -236,6 +248,59 @@ namespace FluentAI.Providers.Anthropic
                     OutputTokens: outputTokens
                 )
             );
+        }
+
+        private async Task AcquireRateLimitPermitAsync(AnthropicOptions options, CancellationToken cancellationToken)
+        {
+            // Only enable rate limiting if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return;
+
+            var rateLimiter = GetOrCreateRateLimiter(options);
+            if (rateLimiter == null)
+                return;
+
+            using var lease = await rateLimiter.AcquireAsync(1, cancellationToken);
+            if (!lease.IsAcquired)
+            {
+                Logger.LogWarning("Rate limit exceeded for Anthropic provider. Permit limit: {PermitLimit}, Window: {WindowInSeconds}s", 
+                    options.PermitLimit, options.WindowInSeconds);
+                throw new AiSdkRateLimitException($"Rate limit exceeded. Maximum {options.PermitLimit} requests per {options.WindowInSeconds} seconds.");
+            }
+        }
+
+        private FixedWindowRateLimiter? GetOrCreateRateLimiter(AnthropicOptions options)
+        {
+            // Only create rate limiter if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return null;
+
+            lock (_rateLimiterLock)
+            {
+                // Recreate rate limiter if configuration changed
+                // Since we can't access options from FixedWindowRateLimiter, we'll use a simple cache invalidation approach
+                if (_rateLimiter == null)
+                {
+                    var rateLimiterOptions = new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.PermitLimit.Value,
+                        Window = TimeSpan.FromSeconds(options.WindowInSeconds.Value),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0 // No queuing, fail immediately if limit exceeded
+                    };
+                    
+                    _rateLimiter = new FixedWindowRateLimiter(rateLimiterOptions);
+                    Logger.LogInformation("Created rate limiter for Anthropic provider: {PermitLimit} permits per {WindowInSeconds}s", 
+                        options.PermitLimit, options.WindowInSeconds);
+                }
+                
+                return _rateLimiter;
+            }
+        }
+
+        public void Dispose()
+        {
+            _rateLimiter?.Dispose();
         }
     }
 }

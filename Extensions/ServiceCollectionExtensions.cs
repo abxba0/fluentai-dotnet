@@ -9,6 +9,7 @@ using FluentAI.Providers.HuggingFace;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace FluentAI.Extensions
 {
@@ -37,26 +38,32 @@ namespace FluentAI.Extensions
         {
             services.Configure<AiSdkOptions>(configuration.GetSection("AiSdk"));
 
+            // Register the chat model factory
+            services.AddSingleton<IChatModelFactory, ChatModelFactory>();
+
             services.AddSingleton<IChatModel>(serviceProvider =>
             {
                 var sdkOptions = serviceProvider.GetRequiredService<IOptions<AiSdkOptions>>().Value;
-                var providerName = sdkOptions.DefaultProvider;
+                var factory = serviceProvider.GetRequiredService<IChatModelFactory>();
 
+                // Check if failover is configured
+                if (sdkOptions.Failover != null && 
+                    !string.IsNullOrEmpty(sdkOptions.Failover.PrimaryProvider) && 
+                    !string.IsNullOrEmpty(sdkOptions.Failover.FallbackProvider))
+                {
+                    var primaryProvider = factory.GetModel(sdkOptions.Failover.PrimaryProvider);
+                    var fallbackProvider = factory.GetModel(sdkOptions.Failover.FallbackProvider);
+                    var logger = serviceProvider.GetRequiredService<ILogger<FailoverChatModel>>();
+                    
+                    return new FailoverChatModel(primaryProvider, fallbackProvider, logger);
+                }
+
+                // Use default provider if no failover configured
+                var providerName = sdkOptions.DefaultProvider;
                 if (string.IsNullOrEmpty(providerName))
                     throw new AiSdkConfigurationException("A default provider is not specified in the 'AiSdk' configuration section.");
 
-                return providerName.ToLowerInvariant() switch
-                {
-                    "openai" => serviceProvider.GetService<OpenAiChatModel>()
-                                ?? throw new AiSdkConfigurationException("OpenAI is configured as default, but was not registered. Call .AddOpenAiChatModel()."),
-                    "anthropic" => serviceProvider.GetService<AnthropicChatModel>()
-                                   ?? throw new AiSdkConfigurationException("Anthropic is configured as default, but was not registered. Call .AddAnthropicChatModel()."),
-                    "google" => serviceProvider.GetService<GoogleGeminiChatModel>()
-                               ?? throw new AiSdkConfigurationException("Google is configured as default, but was not registered. Call .AddGoogleGeminiChatModel()."),
-                    "huggingface" => serviceProvider.GetService<HuggingFaceChatModel>()
-                                    ?? throw new AiSdkConfigurationException("Hugging Face is configured as default, but was not registered. Call .AddHuggingFaceChatModel()."),
-                    _ => throw new AiSdkConfigurationException($"Default provider '{providerName}' is not supported or registered.")
-                };
+                return factory.GetModel(providerName);
             });
 
             return services;
@@ -275,21 +282,14 @@ namespace FluentAI.Extensions
         {
             _defaultProvider = providerName;
 
+            // Register the chat model factory
+            Services.AddSingleton<IChatModelFactory, ChatModelFactory>();
+
             // Register the default IChatModel resolver
             Services.AddSingleton<IChatModel>(serviceProvider =>
             {
-                return providerName.ToLowerInvariant() switch
-                {
-                    "openai" => serviceProvider.GetService<OpenAiChatModel>()
-                                ?? throw new AiSdkConfigurationException("OpenAI is configured as default, but was not registered. Call .AddOpenAI()."),
-                    "anthropic" => serviceProvider.GetService<AnthropicChatModel>()
-                                   ?? throw new AiSdkConfigurationException("Anthropic is configured as default, but was not registered. Call .AddAnthropic()."),
-                    "google" => serviceProvider.GetService<GoogleGeminiChatModel>()
-                               ?? throw new AiSdkConfigurationException("Google is configured as default, but was not registered. Call .AddGoogle()."),
-                    "huggingface" => serviceProvider.GetService<HuggingFaceChatModel>()
-                                    ?? throw new AiSdkConfigurationException("Hugging Face is configured as default, but was not registered. Call .AddHuggingFace()."),
-                    _ => throw new AiSdkConfigurationException($"Default provider '{providerName}' is not supported or registered.")
-                };
+                var factory = serviceProvider.GetRequiredService<IChatModelFactory>();
+                return factory.GetModel(providerName);
             });
 
             return this;
