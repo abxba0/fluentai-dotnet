@@ -117,11 +117,15 @@ namespace FluentAI.Providers.Anthropic
 
         private void ValidateConfiguration(AnthropicOptions options)
         {
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
-                throw new AiSdkConfigurationException("Anthropic API key is required");
-
-            if (string.IsNullOrWhiteSpace(options.Model))
-                throw new AiSdkConfigurationException("Anthropic model is required");
+            // Use DataAnnotations validation
+            var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(options);
+            var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            
+            if (!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(options, validationContext, validationResults, true))
+            {
+                var errors = validationResults.Select(vr => vr.ErrorMessage).Where(msg => msg != null);
+                throw new AiSdkException($"Anthropic configuration validation failed: {string.Join(", ", errors)}");
+            }
         }
 
         private object PrepareRequest(IEnumerable<ChatMessage> messages, bool stream, AnthropicOptions configOptions, ChatRequestOptions? requestOptions)

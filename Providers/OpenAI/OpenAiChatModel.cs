@@ -3,6 +3,7 @@ using Azure.AI.OpenAI;
 using FluentAI.Abstractions;
 using FluentAI.Abstractions.Exceptions;
 using FluentAI.Abstractions.Models;
+using FluentAI.Abstractions.Security;
 using FluentAI.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -94,7 +95,7 @@ namespace FluentAI.Providers.OpenAI
                 // If configuration changed or client not initialized, create new lazy client
                 if (_lazyClient == null || _cachedConfigHash != configHash)
                 {
-                    Logger.LogInformation("Creating new OpenAIClient instance due to configuration change or first use.");
+                    Logger.LogInformationSecure("Creating new OpenAIClient instance due to configuration change or first use.");
                     _cachedConfigHash = configHash;
                     _lazyClient = new Lazy<OpenAIClient>(() => 
                         options.IsAzureOpenAI
@@ -158,12 +159,17 @@ namespace FluentAI.Providers.OpenAI
 
         private void ValidateConfiguration(OpenAiOptions options)
         {
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
-                throw new AiSdkConfigurationException("OpenAI API key is required");
+            // Use DataAnnotations validation
+            var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(options);
+            var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            
+            if (!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(options, validationContext, validationResults, true))
+            {
+                var errors = validationResults.Select(vr => vr.ErrorMessage).Where(msg => msg != null);
+                throw new AiSdkConfigurationException($"OpenAI configuration validation failed: {string.Join(", ", errors)}");
+            }
 
-            if (string.IsNullOrWhiteSpace(options.Model))
-                throw new AiSdkConfigurationException("OpenAI model is required");
-
+            // Additional custom validation for Azure OpenAI
             if (options.IsAzureOpenAI && string.IsNullOrWhiteSpace(options.Endpoint))
                 throw new AiSdkConfigurationException("Azure OpenAI endpoint is required when using Azure OpenAI");
         }
