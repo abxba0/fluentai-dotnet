@@ -8,10 +8,11 @@ using FluentAI.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Runtime.CompilerServices;
+using System.Threading.RateLimiting;
 
 namespace FluentAI.Providers.OpenAI
 {
-    internal class OpenAiChatModel : ChatModelBase
+    internal class OpenAiChatModel : ChatModelBase, IDisposable
     {
         private readonly IOptionsMonitor<OpenAiOptions> _optionsMonitor;
 
@@ -19,6 +20,10 @@ namespace FluentAI.Providers.OpenAI
         private Lazy<OpenAIClient>? _lazyClient;
         private string? _cachedConfigHash;
         private readonly object _clientLock = new();
+        
+        // Rate limiting
+        private FixedWindowRateLimiter? _rateLimiter;
+        private readonly object _rateLimiterLock = new();
 
         public OpenAiChatModel(IOptionsMonitor<OpenAiOptions> optionsMonitor, ILogger<OpenAiChatModel> logger) : base(logger)
         {
@@ -30,6 +35,9 @@ namespace FluentAI.Providers.OpenAI
             var currentOptions = _optionsMonitor.CurrentValue;
             // **VERIFIED FIX**: Validate configuration on every request to support hot-reload of invalid states.
             ValidateConfiguration(currentOptions);
+
+            // Rate limiting
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
 
             var client = GetOrCreateClient(currentOptions);
             var chatOptions = PrepareChatOptions(messages, currentOptions, options);
@@ -67,6 +75,9 @@ namespace FluentAI.Providers.OpenAI
         {
             var currentOptions = _optionsMonitor.CurrentValue;
             ValidateConfiguration(currentOptions);
+
+            // Rate limiting
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
 
             var client = GetOrCreateClient(currentOptions);
             var chatOptions = PrepareChatOptions(messages, currentOptions, options);
@@ -172,6 +183,59 @@ namespace FluentAI.Providers.OpenAI
             // Additional custom validation for Azure OpenAI
             if (options.IsAzureOpenAI && string.IsNullOrWhiteSpace(options.Endpoint))
                 throw new AiSdkConfigurationException("Azure OpenAI endpoint is required when using Azure OpenAI");
+        }
+
+        private async Task AcquireRateLimitPermitAsync(OpenAiOptions options, CancellationToken cancellationToken)
+        {
+            // Only enable rate limiting if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return;
+
+            var rateLimiter = GetOrCreateRateLimiter(options);
+            if (rateLimiter == null)
+                return;
+
+            using var lease = await rateLimiter.AcquireAsync(1, cancellationToken);
+            if (!lease.IsAcquired)
+            {
+                Logger.LogWarning("Rate limit exceeded for OpenAI provider. Permit limit: {PermitLimit}, Window: {WindowInSeconds}s", 
+                    options.PermitLimit, options.WindowInSeconds);
+                throw new AiSdkRateLimitException($"Rate limit exceeded. Maximum {options.PermitLimit} requests per {options.WindowInSeconds} seconds.");
+            }
+        }
+
+        private FixedWindowRateLimiter? GetOrCreateRateLimiter(OpenAiOptions options)
+        {
+            // Only create rate limiter if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return null;
+
+            lock (_rateLimiterLock)
+            {
+                // Recreate rate limiter if configuration changed
+                // Since we can't access options from FixedWindowRateLimiter, we'll use a simple cache invalidation approach
+                if (_rateLimiter == null)
+                {
+                    var rateLimiterOptions = new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.PermitLimit.Value,
+                        Window = TimeSpan.FromSeconds(options.WindowInSeconds.Value),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0 // No queuing, fail immediately if limit exceeded
+                    };
+                    
+                    _rateLimiter = new FixedWindowRateLimiter(rateLimiterOptions);
+                    Logger.LogInformation("Created rate limiter for OpenAI provider: {PermitLimit} permits per {WindowInSeconds}s", 
+                        options.PermitLimit, options.WindowInSeconds);
+                }
+                
+                return _rateLimiter;
+            }
+        }
+
+        public void Dispose()
+        {
+            _rateLimiter?.Dispose();
         }
 
         // ... (ProcessResponse, ValidateConfiguration, MapRole methods remain the same)

@@ -43,4 +43,16 @@ public class AnthropicOptions
     /// </summary>
     [Range(1, 32000, ErrorMessage = "Maximum tokens must be between 1 and 32,000.")]
     public int? MaxTokens { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the rate limit permit count per window. If null, rate limiting is disabled.
+    /// </summary>
+    [Range(1, 10000, ErrorMessage = "Permit limit must be between 1 and 10,000.")]
+    public int? PermitLimit { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the rate limit window duration in seconds. If null, rate limiting is disabled.
+    /// </summary>
+    [Range(1, 3600, ErrorMessage = "Window in seconds must be between 1 and 3,600.")]
+    public int? WindowInSeconds { get; set; }
 }
