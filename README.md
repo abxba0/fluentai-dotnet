@@ -15,6 +15,9 @@ FluentAI.NET is a lightweight, provider-agnostic SDK that unifies access to mult
 - [📦 Installation](#-installation)
 - [🎯 Quick Start](#-quick-start)
 - [🔧 Advanced Usage](#-advanced-usage)
+  - [Provider-Specific Options](#provider-specific-options)
+  - [Resilience Features](#resilience-features)
+  - [Multiple Providers](#multiple-providers)
 - [🏗️ Architecture](#️-architecture)
 - [🔌 Extending with Custom Providers](#-extending-with-custom-providers)
 - [📖 API Reference](#-api-reference)
@@ -28,9 +31,10 @@ FluentAI.NET is a lightweight, provider-agnostic SDK that unifies access to mult
 ✅ **Provider Agnostic** - Switch between OpenAI, Anthropic, Google, HuggingFace with one line  
 ✅ **Streaming Support** - Real-time token-by-token responses for interactive experiences  
 ✅ **Built for Scale** - Thread-safe, memory-efficient, with automatic retry logic  
+✅ **Production Resilience** - Rate limiting, failover strategies, and comprehensive error handling  
 ✅ **DI Integration** - First-class support for ASP.NET Core and modern .NET patterns  
 ✅ **Extensible** - Add custom providers with minimal code  
-✅ **Production Ready** - Comprehensive error handling, resource management, observability  
+✅ **Production Ready** - Resource management, observability, and battle-tested reliability  
 
 ## 🚀 Supported Providers
 
@@ -150,12 +154,16 @@ dotnet run
   "OpenAI": {
     "ApiKey": "your-key-here",
     "Model": "gpt-4",
-    "MaxTokens": 1000
+    "MaxTokens": 1000,
+    "PermitLimit": 100,        // Optional: Rate limiting (requests per window)
+    "WindowInSeconds": 60      // Optional: Rate limiting window
   },
   "Anthropic": {
     "ApiKey": "your-key-here", 
     "Model": "claude-3-sonnet-20240229",
-    "MaxTokens": 1000
+    "MaxTokens": 1000,
+    "PermitLimit": 50,         // Optional: Rate limiting (requests per window)
+    "WindowInSeconds": 60      // Optional: Rate limiting window
   },
   "Google": {
     "ApiKey": "your-key-here",
@@ -213,6 +221,90 @@ var response = await chatModel.GetResponseAsync(messages, new HuggingFaceRequest
     MaxTokens = 400
 });
 ```
+
+### Resilience Features
+
+FluentAI.NET includes production-grade resilience features for reliable operation in real-world scenarios.
+
+#### Rate Limiting
+
+Control the rate of requests to prevent hitting API limits:
+
+```csharp
+// appsettings.json
+{
+  "OpenAI": {
+    "ApiKey": "your-api-key",
+    "Model": "gpt-4",
+    "PermitLimit": 100,      // Maximum requests
+    "WindowInSeconds": 60    // Time window
+  },
+  "Anthropic": {
+    "ApiKey": "your-api-key", 
+    "Model": "claude-3-sonnet-20240229",
+    "PermitLimit": 50,       // Maximum requests
+    "WindowInSeconds": 60    // Time window
+  }
+}
+```
+
+Rate limiting is automatically enabled when `PermitLimit` and `WindowInSeconds` are configured. When limits are exceeded, an `AiSdkRateLimitException` is thrown.
+
+```csharp
+try
+{
+    var response = await chatModel.GetResponseAsync(messages);
+}
+catch (AiSdkRateLimitException ex)
+{
+    // Handle rate limit exceeded
+    logger.LogWarning("Rate limit exceeded: {Message}", ex.Message);
+}
+```
+
+#### Failover Strategy
+
+Configure automatic failover between providers for high availability:
+
+```csharp
+// appsettings.json
+{
+  "AiSdk": {
+    "Failover": {
+      "PrimaryProvider": "OpenAI",
+      "FallbackProvider": "Anthropic"
+    }
+  },
+  "OpenAI": {
+    "ApiKey": "your-openai-key",
+    "Model": "gpt-4"
+  },
+  "Anthropic": {
+    "ApiKey": "your-anthropic-key",
+    "Model": "claude-3-sonnet-20240229"
+  }
+}
+```
+
+```csharp
+// Setup with failover
+services
+    .AddAiSdk(Configuration)
+    .AddOpenAiChatModel(Configuration)
+    .AddAnthropicChatModel(Configuration);
+
+// The SDK automatically uses failover when configured
+// Primary provider is tried first, fallback is used for retriable errors
+var response = await chatModel.GetResponseAsync(messages);
+```
+
+Failover occurs for retriable errors including:
+- 5xx HTTP status codes (500, 502, 503, 504)
+- Rate limiting (429)
+- Timeout exceptions
+- Network connectivity issues
+
+Non-retriable errors (like invalid API keys) bypass failover and are thrown immediately.
 
 ### Multiple Providers
 
@@ -333,6 +425,8 @@ The project includes comprehensive unit tests covering:
 - Core abstractions and models
 - Provider implementations  
 - Configuration validation
+- Rate limiting functionality
+- Failover strategies
 - Error handling scenarios
 - Retry logic
 
