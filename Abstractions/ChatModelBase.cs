@@ -1,4 +1,6 @@
 ﻿using FluentAI.Abstractions.Models;
+using FluentAI.Abstractions.Security;
+using FluentAI.Abstractions.Performance;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
@@ -15,12 +17,26 @@ namespace FluentAI.Abstractions
         protected readonly ILogger Logger;
 
         /// <summary>
+        /// Input sanitizer for security validation.
+        /// </summary>
+        protected readonly IInputSanitizer InputSanitizer;
+
+        /// <summary>
+        /// Performance monitor for tracking operation metrics.
+        /// </summary>
+        protected readonly IPerformanceMonitor PerformanceMonitor;
+
+        /// <summary>
         /// Initializes a new instance of the ChatModelBase class.
         /// </summary>
         /// <param name="logger">Logger instance.</param>
-        protected ChatModelBase(ILogger logger)
+        /// <param name="inputSanitizer">Input sanitizer for security validation.</param>
+        /// <param name="performanceMonitor">Performance monitor for tracking metrics.</param>
+        protected ChatModelBase(ILogger logger, IInputSanitizer? inputSanitizer = null, IPerformanceMonitor? performanceMonitor = null)
         {
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(logger as ILogger<DefaultInputSanitizer> ?? throw new InvalidOperationException("Cannot create default input sanitizer without compatible logger"));
+            PerformanceMonitor = performanceMonitor ?? new DefaultPerformanceMonitor(logger as ILogger<DefaultPerformanceMonitor> ?? throw new InvalidOperationException("Cannot create default performance monitor without compatible logger"));
         }
 
         /// <summary>
@@ -35,11 +51,13 @@ namespace FluentAI.Abstractions
 
         /// <summary>
         /// Validates the input messages and ensures they don't exceed size limits.
+        /// Also performs security validation to prevent prompt injection.
         /// </summary>
         /// <param name="messages">Messages to validate.</param>
         /// <param name="maxRequestSize">Maximum allowed total content size.</param>
+        /// <param name="enableSanitization">Whether to sanitize potentially dangerous content.</param>
         /// <returns>Validated list of messages.</returns>
-        protected virtual List<ChatMessage> ValidateMessages(IEnumerable<ChatMessage> messages, long maxRequestSize)
+        protected virtual List<ChatMessage> ValidateMessages(IEnumerable<ChatMessage> messages, long maxRequestSize, bool enableSanitization = true)
         {
             if (messages == null)
                 throw new ArgumentNullException(nameof(messages));
@@ -49,6 +67,8 @@ namespace FluentAI.Abstractions
                 throw new ArgumentException("Message list cannot be empty.", nameof(messages));
 
             long totalLength = 0;
+            var validatedMessages = new List<ChatMessage>(messageList.Count);
+
             foreach (var message in messageList)
             {
                 if (message == null)
@@ -56,11 +76,34 @@ namespace FluentAI.Abstractions
                 if (string.IsNullOrWhiteSpace(message.Content))
                     throw new ArgumentException("ChatMessage content cannot be null or whitespace.", nameof(messages));
 
-                totalLength += message.Content.Length;
+                var content = message.Content;
+                
+                // Security validation and sanitization
+                if (enableSanitization)
+                {
+                    var riskAssessment = InputSanitizer.AssessRisk(content);
+                    if (riskAssessment.ShouldBlock)
+                    {
+                        Logger.LogWarning("Blocking message due to security risk: {RiskLevel}. Concerns: {Concerns}", 
+                            riskAssessment.RiskLevel, string.Join(", ", riskAssessment.DetectedConcerns));
+                        throw new Exceptions.AiSdkException($"Message content blocked due to security concerns: {string.Join(", ", riskAssessment.DetectedConcerns)}");
+                    }
+
+                    if (riskAssessment.RiskLevel >= SecurityRiskLevel.Medium)
+                    {
+                        Logger.LogInformation("Sanitizing message content due to security risk: {RiskLevel}", riskAssessment.RiskLevel);
+                        content = InputSanitizer.SanitizeContent(content);
+                    }
+                }
+
+                totalLength += content.Length;
                 if (totalLength > maxRequestSize)
                     throw new ArgumentException($"Total message content size exceeds the configured limit of {maxRequestSize} characters.");
+
+                validatedMessages.Add(message with { Content = content });
             }
-            return messageList;
+            
+            return validatedMessages;
         }
 
         /// <summary>
