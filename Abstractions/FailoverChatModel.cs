@@ -82,34 +82,48 @@ namespace FluentAI.Abstractions
 
         private async IAsyncEnumerable<StreamResult> TryStreamFromProviderAsync(IChatModel provider, string providerName, IEnumerable<ChatMessage> messages, ChatRequestOptions? options, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            var results = new List<StreamResult>();
-            IAsyncEnumerator<string>? enumerator = null;
+            var stream = provider.StreamResponseAsync(messages, options, cancellationToken);
+            var enumerator = stream.GetAsyncEnumerator(cancellationToken);
             
             try
             {
-                var stream = provider.StreamResponseAsync(messages, options, cancellationToken);
-                enumerator = stream.GetAsyncEnumerator(cancellationToken);
-                
-                while (await enumerator.MoveNextAsync())
+                while (true)
                 {
-                    results.Add(new StreamResult { IsSuccess = true, Token = enumerator.Current });
+                    bool hasNext;
+                    string? current = null;
+                    Exception? streamException = null;
+
+                    try
+                    {
+                        hasNext = await enumerator.MoveNextAsync();
+                        if (hasNext)
+                        {
+                            current = enumerator.Current;
+                        }
+                    }
+                    catch (Exception ex) when (IsRetriableError(ex))
+                    {
+                        streamException = ex;
+                        hasNext = false;
+                    }
+
+                    if (streamException != null)
+                    {
+                        yield return new StreamResult { IsSuccess = false, Exception = streamException };
+                        yield break;
+                    }
+
+                    if (!hasNext)
+                    {
+                        yield break;
+                    }
+
+                    yield return new StreamResult { IsSuccess = true, Token = current };
                 }
-            }
-            catch (Exception ex) when (IsRetriableError(ex))
-            {
-                results.Add(new StreamResult { IsSuccess = false, Exception = ex });
             }
             finally
             {
-                if (enumerator != null)
-                {
-                    await enumerator.DisposeAsync();
-                }
-            }
-
-            foreach (var result in results)
-            {
-                yield return result;
+                await enumerator.DisposeAsync();
             }
         }
 
