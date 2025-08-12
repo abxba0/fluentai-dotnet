@@ -48,63 +48,76 @@ namespace FluentAI.Abstractions
 
         public async IAsyncEnumerable<string> StreamResponseAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            // Try to get streaming response from primary provider
-            var primaryStream = await TryGetPrimaryStreamAsync(messages, options, cancellationToken);
-            if (primaryStream != null)
+            // Try primary provider first
+            var primaryResult = TryStreamFromProviderAsync(_primaryProvider, "primary", messages, options, cancellationToken);
+            
+            await foreach (var result in primaryResult)
             {
-                await foreach (var token in primaryStream)
+                if (result.IsSuccess)
                 {
-                    yield return token;
+                    yield return result.Token!;
                 }
-                yield break;
-            }
-
-            // Primary failed, try fallback
-            var fallbackStream = await TryGetFallbackStreamAsync(messages, options, cancellationToken);
-            await foreach (var token in fallbackStream)
-            {
-                yield return token;
+                else
+                {
+                    // Primary failed, try fallback
+                    _logger.LogWarning(result.Exception, "Primary provider failed with retriable error during streaming, attempting failover to fallback provider");
+                    
+                    var fallbackResult = TryStreamFromProviderAsync(_fallbackProvider, "fallback", messages, options, cancellationToken);
+                    await foreach (var fallbackToken in fallbackResult)
+                    {
+                        if (fallbackToken.IsSuccess)
+                        {
+                            yield return fallbackToken.Token!;
+                        }
+                        else
+                        {
+                            _logger.LogError(fallbackToken.Exception, "Fallback provider also failed during streaming");
+                            throw result.Exception ?? fallbackToken.Exception!;
+                        }
+                    }
+                    yield break;
+                }
             }
         }
 
-        private async Task<IAsyncEnumerable<string>?> TryGetPrimaryStreamAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options, CancellationToken cancellationToken)
+        private async IAsyncEnumerable<StreamResult> TryStreamFromProviderAsync(IChatModel provider, string providerName, IEnumerable<ChatMessage> messages, ChatRequestOptions? options, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            var results = new List<StreamResult>();
+            IAsyncEnumerator<string>? enumerator = null;
+            
             try
             {
-                var stream = _primaryProvider.StreamResponseAsync(messages, options, cancellationToken);
-                var enumerator = stream.GetAsyncEnumerator(cancellationToken);
+                var stream = provider.StreamResponseAsync(messages, options, cancellationToken);
+                enumerator = stream.GetAsyncEnumerator(cancellationToken);
                 
-                // Test if we can get the first token
-                if (await enumerator.MoveNextAsync())
+                while (await enumerator.MoveNextAsync())
                 {
-                    // Reset enumerator by creating a new stream and return it
-                    await enumerator.DisposeAsync();
-                    return _primaryProvider.StreamResponseAsync(messages, options, cancellationToken);
+                    results.Add(new StreamResult { IsSuccess = true, Token = enumerator.Current });
                 }
-                
-                await enumerator.DisposeAsync();
-                return null;
             }
             catch (Exception ex) when (IsRetriableError(ex))
             {
-                _logger.LogWarning(ex, "Primary provider failed with retriable error during streaming, will attempt failover to fallback provider");
-                return null;
+                results.Add(new StreamResult { IsSuccess = false, Exception = ex });
+            }
+            finally
+            {
+                if (enumerator != null)
+                {
+                    await enumerator.DisposeAsync();
+                }
+            }
+
+            foreach (var result in results)
+            {
+                yield return result;
             }
         }
 
-        private Task<IAsyncEnumerable<string>> TryGetFallbackStreamAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options, CancellationToken cancellationToken)
+        private class StreamResult
         {
-            try
-            {
-                var stream = _fallbackProvider.StreamResponseAsync(messages, options, cancellationToken);
-                _logger.LogInformation("Failover successful, streaming response received from fallback provider");
-                return Task.FromResult(stream);
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger.LogError(fallbackEx, "Fallback provider also failed during streaming");
-                throw;
-            }
+            public bool IsSuccess { get; set; }
+            public string? Token { get; set; }
+            public Exception? Exception { get; set; }
         }
 
         private static bool IsRetriableError(Exception exception)
