@@ -382,14 +382,6 @@ InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(
 
 **Current Workaround**: This example uses a mock implementation that demonstrates the correct API patterns while avoiding the DI issues.
 
-## Next Steps
-
-1. **Explore the source code** - Review `Program.cs` for detailed implementation
-2. **Uncomment optional providers** - Enable Google, HuggingFace if you have API keys
-3. **Add performance monitoring** - Register `IPerformanceMonitor` in DI
-4. **Implement caching** - Register `IResponseCache` for improved performance
-5. **Build your own application** - Use this example as a starting point
-
 ## Support
 
 - 📖 [SDK Documentation](https://github.com/abxba0/fluentai-dotnet)
