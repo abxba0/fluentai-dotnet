@@ -24,6 +24,7 @@ namespace FluentAI.Providers.OpenAI
         // Rate limiting
         private FixedWindowRateLimiter? _rateLimiter;
         private readonly object _rateLimiterLock = new();
+        private string? _cachedRateLimiterConfig;
 
         public OpenAiChatModel(IOptionsMonitor<OpenAiOptions> optionsMonitor, ILogger<OpenAiChatModel> logger) : base(logger)
         {
@@ -99,7 +100,9 @@ namespace FluentAI.Providers.OpenAI
         private OpenAIClient GetOrCreateClient(OpenAiOptions options)
         {
             // Create a hash of critical configuration properties to detect changes
-            var configHash = $"{options.ApiKey}|{options.Endpoint}|{options.IsAzureOpenAI}";
+            // Exclude API key for security reasons - use hash of first and last characters
+            var apiKeyHash = options.ApiKey?.Length > 2 ? $"{options.ApiKey[0]}***{options.ApiKey[^1]}" : "empty";
+            var configHash = $"{apiKeyHash}|{options.Endpoint}|{options.IsAzureOpenAI}";
 
             lock (_clientLock)
             {
@@ -110,8 +113,8 @@ namespace FluentAI.Providers.OpenAI
                     _cachedConfigHash = configHash;
                     _lazyClient = new Lazy<OpenAIClient>(() => 
                         options.IsAzureOpenAI
-                            ? new OpenAIClient(new Uri(options.Endpoint!), new AzureKeyCredential(options.ApiKey))
-                            : new OpenAIClient(options.ApiKey),
+                            ? new OpenAIClient(new Uri(options.Endpoint!), new AzureKeyCredential(options.ApiKey!))
+                            : new OpenAIClient(options.ApiKey!),
                         LazyThreadSafetyMode.ExecutionAndPublication);
                 }
                 return _lazyClient.Value;
@@ -210,12 +213,16 @@ namespace FluentAI.Providers.OpenAI
             if (options.PermitLimit == null || options.WindowInSeconds == null)
                 return null;
 
+            var rateLimiterConfig = $"{options.PermitLimit}|{options.WindowInSeconds}";
+
             lock (_rateLimiterLock)
             {
                 // Recreate rate limiter if configuration changed
-                // Since we can't access options from FixedWindowRateLimiter, we'll use a simple cache invalidation approach
-                if (_rateLimiter == null)
+                if (_rateLimiter == null || _cachedRateLimiterConfig != rateLimiterConfig)
                 {
+                    // Dispose old rate limiter if exists
+                    _rateLimiter?.Dispose();
+
                     var rateLimiterOptions = new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = options.PermitLimit.Value,
@@ -225,6 +232,7 @@ namespace FluentAI.Providers.OpenAI
                     };
                     
                     _rateLimiter = new FixedWindowRateLimiter(rateLimiterOptions);
+                    _cachedRateLimiterConfig = rateLimiterConfig;
                     Logger.LogInformation("Created rate limiter for OpenAI provider: {PermitLimit} permits per {WindowInSeconds}s", 
                         options.PermitLimit, options.WindowInSeconds);
                 }

@@ -35,8 +35,8 @@ namespace FluentAI.Abstractions
         protected ChatModelBase(ILogger logger, IInputSanitizer? inputSanitizer = null, IPerformanceMonitor? performanceMonitor = null)
         {
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(logger as ILogger<DefaultInputSanitizer> ?? throw new InvalidOperationException("Cannot create default input sanitizer without compatible logger"));
-            PerformanceMonitor = performanceMonitor ?? new DefaultPerformanceMonitor(logger as ILogger<DefaultPerformanceMonitor> ?? throw new InvalidOperationException("Cannot create default performance monitor without compatible logger"));
+            InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(new Security.LoggerAdapter<DefaultInputSanitizer>(logger));
+            PerformanceMonitor = performanceMonitor ?? new DefaultPerformanceMonitor(new Performance.LoggerAdapter<DefaultPerformanceMonitor>(logger));
         }
 
         /// <summary>
