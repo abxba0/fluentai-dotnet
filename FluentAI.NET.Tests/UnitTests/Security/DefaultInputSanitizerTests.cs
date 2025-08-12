@@ -38,7 +38,7 @@ namespace FluentAI.NET.Tests.UnitTests.Security
         public void AssessRisk_ShouldDetectSuspiciousTokens()
         {
             // Arrange
-            var content = "Here is some content with ### suspicious tokens and <|endoftext|>";
+            var content = "Here is some content with ### suspicious tokens and <" + "|endoftext|>";
 
             // Act
             var assessment = _sanitizer.AssessRisk(content);
