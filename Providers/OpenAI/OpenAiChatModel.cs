@@ -100,8 +100,8 @@ namespace FluentAI.Providers.OpenAI
         private OpenAIClient GetOrCreateClient(OpenAiOptions options)
         {
             // Create a hash of critical configuration properties to detect changes
-            // Exclude API key for security reasons - use hash of first and last characters
-            var apiKeyHash = options.ApiKey?.Length > 2 ? $"{options.ApiKey[0]}***{options.ApiKey[^1]}" : "empty";
+            // Use secure hash of API key instead of partial content
+            var apiKeyHash = options.ApiKey?.Length > 0 ? options.ApiKey.GetHashCode().ToString() : "empty";
             var configHash = $"{apiKeyHash}|{options.Endpoint}|{options.IsAzureOpenAI}";
 
             lock (_clientLock)

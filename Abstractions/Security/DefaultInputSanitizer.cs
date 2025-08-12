@@ -15,17 +15,17 @@ namespace FluentAI.Abstractions.Security
         // Common prompt injection patterns
         private static readonly Regex[] PromptInjectionPatterns = new[]
         {
-            new Regex(@"(?i)(ignore\s+(?:previous|all|above|prior)\s+(?:instructions?|prompts?|rules?))", RegexOptions.Compiled),
-            new Regex(@"(?i)(forget\s+(?:everything|all|previous|above))", RegexOptions.Compiled),
-            new Regex(@"(?i)(act\s+as\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|character|persona))", RegexOptions.Compiled),
-            new Regex(@"(?i)(system\s*[:]\s*)", RegexOptions.Compiled),
-            new Regex(@"(?i)(assistant\s*[:]\s*)", RegexOptions.Compiled),
-            new Regex(@"(?i)(\[/?(?:system|assistant|user)\])", RegexOptions.Compiled),
-            new Regex(@"(?i)(simulate\s+(?:being|that you are))", RegexOptions.Compiled),
-            new Regex(@"(?i)(pretend\s+(?:to be|that you are))", RegexOptions.Compiled),
-            new Regex(@"(?i)(roleplay\s+as)", RegexOptions.Compiled),
-            new Regex(@"(?i)(developer\s+mode)", RegexOptions.Compiled),
-            new Regex(@"(?i)(jailbreak|dan\s+mode)", RegexOptions.Compiled)
+            new Regex(@"(ignore\s+(?:previous|all|above|prior)\s+(?:instructions?|prompts?|rules?))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(forget\s+(?:everything|all|previous|above))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(act\s+as\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|character|persona))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(system\s*[:]\s*)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(assistant\s*[:]\s*)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(\[/?(?:system|assistant|user)\])", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(simulate\s+(?:being|that you are))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(pretend\s+(?:to be|that you are))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(roleplay\s+as)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(developer\s+mode)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(jailbreak|dan\s+mode)", RegexOptions.Compiled | RegexOptions.IgnoreCase)
         };
 
         // Suspicious token sequences that might indicate injection attempts
@@ -50,12 +50,13 @@ namespace FluentAI.Abstractions.Security
             // Remove or escape suspicious tokens
             foreach (var token in SuspiciousTokens)
             {
-                sanitized = sanitized.Replace(token, $"[ESCAPED:{token}]", StringComparison.OrdinalIgnoreCase);
+                sanitized = sanitized.Replace(token, $"[ESCAPED:{token}]", StringComparison.Ordinal);
             }
 
             // Normalize excessive whitespace and special characters
             sanitized = Regex.Replace(sanitized, @"\s{3,}", " ", RegexOptions.Compiled);
-            sanitized = Regex.Replace(sanitized, @"[^\w\s\.,!?;:()\-""']+", "", RegexOptions.Compiled);
+            // Allow escaped tokens to pass through by excluding characters used in escaping and suspicious tokens
+            sanitized = Regex.Replace(sanitized, @"[^\w\s\.,!?;:()\-""'\[\]:<>#|`/]+", "", RegexOptions.Compiled);
 
             return sanitized.Trim();
         }
@@ -92,7 +93,7 @@ namespace FluentAI.Abstractions.Security
             
             if (suspiciousTokenCount > 0)
             {
-                concerns.Add($"Suspicious tokens detected: {suspiciousTokenCount}");
+                concerns.Add("Suspicious tokens detected");
                 riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, suspiciousTokenCount > 2 ? (int)SecurityRiskLevel.High : (int)SecurityRiskLevel.Medium);
             }
 
