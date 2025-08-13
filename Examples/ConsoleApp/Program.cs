@@ -21,32 +21,101 @@ class Program
         Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         Console.WriteLine();
         
-        // Create host builder with comprehensive service configuration
-        var builder = Host.CreateDefaultBuilder(args)
-            .ConfigureServices((context, services) =>
-            {
-                // Register FluentAI with all providers and features
-                services.AddAiSdk(context.Configuration);
-                
-                // Add individual providers for direct access
-                services.AddOpenAiChatModel(context.Configuration);
-                services.AddAnthropicChatModel(context.Configuration);
-                services.AddGoogleGeminiChatModel(context.Configuration);
-                services.AddHuggingFaceChatModel(context.Configuration);
-                
-                // Register application services
-                services.AddTransient<DemoService>();
-                services.AddTransient<ProviderDemoService>();
-                services.AddTransient<SecurityDemoService>();
-                services.AddTransient<PerformanceDemoService>();
-                services.AddTransient<ConfigurationDemoService>();
-                services.AddTransient<ErrorHandlingDemoService>();
-            });
-
-        using var host = builder.Build();
-        
         try
         {
+            // Create host builder with comprehensive service configuration
+            var builder = Host.CreateDefaultBuilder(args)
+                .ConfigureServices((context, services) =>
+                {
+                    try
+                    {
+                        // Register FluentAI with all providers and features
+                        services.AddAiSdk(context.Configuration);
+                        
+                        // Add individual providers for direct access
+                        services.AddOpenAiChatModel(context.Configuration);
+                        services.AddAnthropicChatModel(context.Configuration);
+                        services.AddGoogleGeminiChatModel(context.Configuration);
+                        services.AddHuggingFaceChatModel(context.Configuration);
+                        
+                        // Register application services
+                        services.AddTransient<DemoService>();
+                        services.AddTransient<ProviderDemoService>();
+                        services.AddTransient<SecurityDemoService>();
+                        services.AddTransient<PerformanceDemoService>();
+                        services.AddTransient<ConfigurationDemoService>();
+                        services.AddTransient<ErrorHandlingDemoService>();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"❌ Configuration Error: {ex.Message}");
+                        Console.ResetColor();
+                        
+                        // Log additional troubleshooting information
+                        Console.WriteLine();
+                        Console.WriteLine("💡 Troubleshooting:");
+                        Console.WriteLine("   • Ensure appsettings.json exists and contains an 'AiSdk' section");
+                        Console.WriteLine("   • Set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', 'HuggingFace'");
+                        Console.WriteLine("   • Ensure required environment variables are set (e.g., OPENAI_API_KEY)");
+                        Console.WriteLine();
+                        
+                        if (args.Contains("--debug"))
+                        {
+                            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                        }
+                        
+                        Environment.Exit(1);
+                    }
+                });
+
+            using var host = builder.Build();
+            
+            // Validate that the service can be created before showing the menu
+            try
+            {
+                var chatModel = host.Services.GetRequiredService<IChatModel>();
+                Console.WriteLine("✅ FluentAI.NET SDK initialized successfully");
+                Console.WriteLine();
+            }
+            catch (AiSdkConfigurationException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Configuration Error: {ex.Message}");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.WriteLine("💡 Troubleshooting:");
+                Console.WriteLine("   • Check your appsettings.json for the 'AiSdk' section");
+                Console.WriteLine("   • Ensure 'AiSdk:DefaultProvider' is set to: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'");
+                Console.WriteLine("   • Verify that the specified provider is properly registered and configured");
+                Console.WriteLine("   • Check that required environment variables are set (e.g., OPENAI_API_KEY)");
+                Console.WriteLine();
+                
+                if (args.Contains("--debug"))
+                {
+                    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                }
+                
+                return;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Service Validation Error: {ex.Message}");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.WriteLine("💡 This typically means your provider configuration is incomplete.");
+                Console.WriteLine("   Please check your appsettings.json and environment variables.");
+                Console.WriteLine();
+                
+                if (args.Contains("--debug"))
+                {
+                    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                }
+                
+                return;
+            }
+            
             var demoService = host.Services.GetRequiredService<DemoService>();
             await demoService.RunMainMenu();
         }
@@ -134,6 +203,9 @@ public class DemoService
                     case "9":
                         await RunInteractiveChat();
                         break;
+                    case "10":
+                        await EdgeCaseTestService.RunEdgeCaseTests();
+                        break;
                     case "0":
                     case "exit":
                     case "quit":
@@ -178,9 +250,10 @@ public class DemoService
         Console.WriteLine("║ 7. 🚨 Error Handling & Resilience Demo                     ║");
         Console.WriteLine("║ 8. 🔧 Advanced Features Demo                               ║");
         Console.WriteLine("║ 9. 💻 Interactive Chat (Original Demo)                     ║");
+        Console.WriteLine("║ 10. 🧪 Edge Case & Error Scenario Tests                   ║");
         Console.WriteLine("║ 0. 🚪 Exit                                                  ║");
         Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
-        Console.Write("\nSelect an option (0-9): ");
+        Console.Write("\nSelect an option (0-10): ");
     }
 
     private async Task RunBasicChatDemo()
