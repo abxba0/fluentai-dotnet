@@ -1,6 +1,10 @@
 using FluentAI.Abstractions;
 using FluentAI.Abstractions.Models;
+using FluentAI.Abstractions.Performance;
+using FluentAI.Abstractions.Security;
+using FluentAI.Abstractions.Exceptions;
 using FluentAI.Extensions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,63 +15,297 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        Console.WriteLine("FluentAI.NET Console Example");
-        Console.WriteLine("============================");
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                    FluentAI.NET SDK Demo                    ║");
+        Console.WriteLine("║                  Comprehensive Feature Showcase             ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
         
-        // Create host builder with dependency injection
+        // Create host builder with comprehensive service configuration
         var builder = Host.CreateDefaultBuilder(args)
             .ConfigureServices((context, services) =>
             {
-                // Add FluentAI services
-                services.AddFluentAI()
-                    .AddOpenAI(config =>
-                    {
-                        // In a real app, load from configuration
-                        config.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "your-api-key-here";
-                        config.Model = "gpt-3.5-turbo";
-                        config.MaxTokens = 150;
-                    })
-                    .AddAnthropic(config =>
-                    {
-                        // In a real app, load from configuration  
-                        config.ApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") ?? "your-api-key-here";
-                        config.Model = "claude-3-haiku-20240307";
-                        config.MaxTokens = 150;
-                    })
-                    .UseDefaultProvider("OpenAI");
-                    
-                services.AddTransient<ChatService>();
+                // Register FluentAI with all providers and features
+                services.AddAiSdk(context.Configuration);
+                
+                // Add individual providers for direct access
+                services.AddOpenAiChatModel(context.Configuration);
+                services.AddAnthropicChatModel(context.Configuration);
+                services.AddGoogleGeminiChatModel(context.Configuration);
+                services.AddHuggingFaceChatModel(context.Configuration);
+                
+                // Register application services
+                services.AddTransient<DemoService>();
+                services.AddTransient<ProviderDemoService>();
+                services.AddTransient<SecurityDemoService>();
+                services.AddTransient<PerformanceDemoService>();
+                services.AddTransient<ConfigurationDemoService>();
+                services.AddTransient<ErrorHandlingDemoService>();
             });
 
         using var host = builder.Build();
         
         try
         {
-            var chatService = host.Services.GetRequiredService<ChatService>();
-            await chatService.RunInteractiveChat();
+            var demoService = host.Services.GetRequiredService<DemoService>();
+            await demoService.RunMainMenu();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n❌ Application Error: {ex.Message}");
+            Console.ResetColor();
+            if (args.Contains("--debug"))
+            {
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            }
         }
     }
 }
 
-public class ChatService
+/// <summary>
+/// Main demonstration service that provides an interactive menu to showcase all SDK features.
+/// </summary>
+public class DemoService
 {
     private readonly IChatModel _chatModel;
-    private readonly ILogger<ChatService> _logger;
+    private readonly ILogger<DemoService> _logger;
+    private readonly ProviderDemoService _providerDemo;
+    private readonly SecurityDemoService _securityDemo;
+    private readonly PerformanceDemoService _performanceDemo;
+    private readonly ConfigurationDemoService _configDemo;
+    private readonly ErrorHandlingDemoService _errorDemo;
 
-    public ChatService(IChatModel chatModel, ILogger<ChatService> logger)
+    public DemoService(
+        IChatModel chatModel,
+        ILogger<DemoService> logger,
+        ProviderDemoService providerDemo,
+        SecurityDemoService securityDemo,
+        PerformanceDemoService performanceDemo,
+        ConfigurationDemoService configDemo,
+        ErrorHandlingDemoService errorDemo)
     {
         _chatModel = chatModel;
         _logger = logger;
+        _providerDemo = providerDemo;
+        _securityDemo = securityDemo;
+        _performanceDemo = performanceDemo;
+        _configDemo = configDemo;
+        _errorDemo = errorDemo;
     }
 
-    public async Task RunInteractiveChat()
+    public async Task RunMainMenu()
     {
-        Console.WriteLine("\nFluentAI Chat Demo");
-        Console.WriteLine("Type 'exit' to quit, 'stream' to toggle streaming mode\n");
+        while (true)
+        {
+            DisplayMainMenu();
+            
+            var choice = Console.ReadLine()?.Trim();
+            Console.WriteLine();
+
+            try
+            {
+                switch (choice)
+                {
+                    case "1":
+                        await RunBasicChatDemo();
+                        break;
+                    case "2":
+                        await RunStreamingDemo();
+                        break;
+                    case "3":
+                        await _providerDemo.RunProviderComparison();
+                        break;
+                    case "4":
+                        await _securityDemo.RunSecurityFeatures();
+                        break;
+                    case "5":
+                        await _performanceDemo.RunPerformanceDemo();
+                        break;
+                    case "6":
+                        await _configDemo.RunConfigurationDemo();
+                        break;
+                    case "7":
+                        await _errorDemo.RunErrorHandlingDemo();
+                        break;
+                    case "8":
+                        await RunAdvancedFeaturesDemo();
+                        break;
+                    case "9":
+                        await RunInteractiveChat();
+                        break;
+                    case "0":
+                    case "exit":
+                    case "quit":
+                        Console.WriteLine("👋 Thank you for exploring FluentAI.NET!");
+                        return;
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("❌ Invalid option. Please try again.");
+                        Console.ResetColor();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Error: {ex.Message}");
+                Console.ResetColor();
+                _logger.LogError(ex, "Error in demo operation");
+            }
+
+            if (choice != "0" && choice != "exit" && choice != "quit")
+            {
+                Console.WriteLine("\nPress any key to continue...");
+                Console.ReadKey();
+                Console.Clear();
+            }
+        }
+    }
+
+    private void DisplayMainMenu()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                    FluentAI.NET SDK Demo                    ║");
+        Console.WriteLine("║                     Main Feature Menu                       ║");
+        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
+        Console.WriteLine("║ 1. 💬 Basic Chat Completion Demo                            ║");
+        Console.WriteLine("║ 2. 🌊 Streaming Response Demo                               ║");
+        Console.WriteLine("║ 3. 🔄 Multi-Provider Comparison                             ║");
+        Console.WriteLine("║ 4. 🔒 Security Features Demo                                ║");
+        Console.WriteLine("║ 5. ⚡ Performance & Caching Demo                           ║");
+        Console.WriteLine("║ 6. ⚙️ Configuration Management Demo                         ║");
+        Console.WriteLine("║ 7. 🚨 Error Handling & Resilience Demo                     ║");
+        Console.WriteLine("║ 8. 🔧 Advanced Features Demo                               ║");
+        Console.WriteLine("║ 9. 💻 Interactive Chat (Original Demo)                     ║");
+        Console.WriteLine("║ 0. 🚪 Exit                                                  ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.Write("\nSelect an option (0-9): ");
+    }
+
+    private async Task RunBasicChatDemo()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                    Basic Chat Demo                          ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, "You are a helpful AI assistant. Be concise and informative."),
+            new(ChatRole.User, "Explain what FluentAI.NET is in 2-3 sentences.")
+        };
+
+        Console.WriteLine("📤 Sending message to AI...");
+        Console.WriteLine($"User: {messages.Last().Content}");
+        Console.WriteLine();
+
+        try
+        {
+            var response = await _chatModel.GetResponseAsync(messages);
+            
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("🤖 AI Response:");
+            Console.ResetColor();
+            Console.WriteLine(response.Content);
+            Console.WriteLine();
+            
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("📊 Response Metadata:");
+            Console.WriteLine($"   Model: {response.ModelId}");
+            Console.WriteLine($"   Input Tokens: {response.Usage.InputTokens}");
+            Console.WriteLine($"   Output Tokens: {response.Usage.OutputTokens}");
+            Console.WriteLine($"   Total Tokens: {response.Usage.TotalTokens}");
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"❌ Error: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+
+    private async Task RunStreamingDemo()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                    Streaming Demo                           ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, "You are a creative storyteller. Tell engaging short stories."),
+            new(ChatRole.User, "Tell me a short story about a robot who discovers emotions.")
+        };
+
+        Console.WriteLine("📤 Starting streaming response...");
+        Console.WriteLine($"User: {messages.Last().Content}");
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write("🤖 AI Response (streaming): ");
+
+        try
+        {
+            var fullResponse = "";
+            await foreach (var token in _chatModel.StreamResponseAsync(messages))
+            {
+                Console.Write(token);
+                fullResponse += token;
+                await Task.Delay(10); // Small delay to visualize streaming
+            }
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine();
+            
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"📊 Total response length: {fullResponse.Length} characters");
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n❌ Streaming Error: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+
+    private async Task RunAdvancedFeaturesDemo()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                  Advanced Features Demo                     ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+
+        Console.WriteLine("🔧 Advanced features available in FluentAI.NET:");
+        Console.WriteLine();
+        Console.WriteLine("✅ Multi-provider support (OpenAI, Anthropic, Google, HuggingFace)");
+        Console.WriteLine("✅ Automatic failover between providers");
+        Console.WriteLine("✅ Rate limiting with sliding window");
+        Console.WriteLine("✅ Response caching for performance");
+        Console.WriteLine("✅ Input sanitization and security scanning");
+        Console.WriteLine("✅ Performance monitoring and metrics");
+        Console.WriteLine("✅ Structured logging and observability");
+        Console.WriteLine("✅ Dependency injection integration");
+        Console.WriteLine("✅ Configuration-based setup");
+        Console.WriteLine("✅ Comprehensive error handling");
+        Console.WriteLine("✅ Memory management and cleanup");
+        Console.WriteLine("✅ Streaming responses");
+        Console.WriteLine("✅ Custom provider extensions");
+        Console.WriteLine();
+
+        Console.WriteLine("💡 Use the other menu options to explore these features interactively!");
+    }
+
+    private async Task RunInteractiveChat()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                   Interactive Chat                          ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        Console.WriteLine("Type 'exit' to return to main menu, 'stream' to toggle streaming mode");
+        Console.WriteLine();
         
         bool useStreaming = false;
         var messages = new List<ChatMessage>
@@ -121,12 +359,12 @@ public class ChatService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during chat completion");
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
             }
             
             Console.WriteLine();
         }
-        
-        Console.WriteLine("Chat ended. Goodbye!");
     }
 }
