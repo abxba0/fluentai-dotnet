@@ -38,9 +38,12 @@ namespace FluentAI.Extensions
         {
             // Early validation to prevent runtime errors
             var aiSdkSection = configuration.GetSection("AiSdk");
-            if (!aiSdkSection.Exists())
+            var aiSdkExists = aiSdkSection.Exists();
+            
+            if (!aiSdkExists)
             {
-                throw new AiSdkConfigurationException("The 'AiSdk' configuration section is missing. Please add an 'AiSdk' section to your appsettings.json with at least a 'DefaultProvider' specified.");
+                var diagnosticMessage = CreateConfigurationDiagnostic(aiSdkExists, "[Not Available]");
+                throw new AiSdkConfigurationException($"{diagnosticMessage}\nConfiguration Error: The 'AiSdk' configuration section is missing. Please add an 'AiSdk' section to your appsettings.json with at least a 'DefaultProvider' specified.");
             }
 
             services.Configure<AiSdkOptions>(aiSdkSection);
@@ -70,7 +73,10 @@ namespace FluentAI.Extensions
                     // Use default provider if no failover configured
                     var providerName = sdkOptions.DefaultProvider;
                     if (string.IsNullOrWhiteSpace(providerName))
-                        throw new AiSdkConfigurationException("A default provider is not specified in the 'AiSdk' configuration section. Please set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'.");
+                    {
+                        var diagnosticMessage = CreateConfigurationDiagnostic(true, providerName ?? "[Not Specified]");
+                        throw new AiSdkConfigurationException($"{diagnosticMessage}\nConfiguration Error: A default provider is not specified in the 'AiSdk' configuration section. Please set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'.");
+                    }
 
                     return factory.GetModel(providerName);
                 }
@@ -86,6 +92,17 @@ namespace FluentAI.Extensions
             });
 
             return services;
+        }
+
+        /// <summary>
+        /// Creates a diagnostic message for configuration errors.
+        /// </summary>
+        /// <param name="aiSdkExists">Whether the AiSdk section exists.</param>
+        /// <param name="defaultProvider">The default provider value.</param>
+        /// <returns>A formatted diagnostic message.</returns>
+        private static string CreateConfigurationDiagnostic(bool aiSdkExists, string defaultProvider)
+        {
+            return $"Error: AiSdk Section Exists: {aiSdkExists}\nDefaultProvider: {defaultProvider}";
         }
 
         /// <summary>
