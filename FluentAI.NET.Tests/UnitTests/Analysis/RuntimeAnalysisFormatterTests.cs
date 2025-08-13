@@ -280,5 +280,128 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             Assert.Contains("Medium Likelihood: 1", summary);
             Assert.Contains("Edge Case Failures: 2", summary);
         }
+
+        [Fact]
+        public void FormatAsStructuredReport_WithNullResult_ThrowsException()
+        {
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => 
+                RuntimeAnalysisFormatter.FormatAsStructuredReport(null!));
+        }
+
+        [Fact]
+        public void FormatAsStructuredReport_WithRuntimeIssues_MatchesRequiredFormat()
+        {
+            // Arrange
+            var result = new RuntimeAnalysisResult
+            {
+                RuntimeIssues = new[]
+                {
+                    new RuntimeIssue
+                    {
+                        Id = 1,
+                        Type = RuntimeIssueType.Performance,
+                        Severity = RuntimeIssueSeverity.High,
+                        Description = "Performance degradation issue",
+                        Proof = new IssueProof
+                        {
+                            Trigger = "Large dataset processing",
+                            Result = "Memory exhaustion and slow response times"
+                        },
+                        Solution = new IssueSolution
+                        {
+                            Fix = "Implement pagination and lazy loading",
+                            Verification = "Load test with large datasets"
+                        }
+                    }
+                }
+            };
+
+            // Act
+            var report = RuntimeAnalysisFormatter.FormatAsStructuredReport(result);
+
+            // Assert - Verify exact format matching the issue requirements
+            Assert.Contains("ISSUE #1:", report);
+            Assert.Contains("TYPE: Performance", report);
+            Assert.Contains("SEVERITY: High", report);
+            Assert.Contains("DESCRIPTION: Performance degradation issue", report);
+            Assert.Contains("TRIGGER: Large dataset processing", report);
+            Assert.Contains("EXPECTED: Optimal performance without resource exhaustion", report);
+            Assert.Contains("ACTUAL (Simulated): Memory exhaustion and slow response times", report);
+            Assert.Contains("SOLUTION: Implement pagination and lazy loading", report);
+            Assert.Contains("VERIFICATION: Load test with large datasets", report);
+        }
+
+        [Fact] 
+        public void FormatAsStructuredReport_WithEnvironmentRisks_ConvertsToIssueFormat()
+        {
+            // Arrange
+            var result = new RuntimeAnalysisResult
+            {
+                EnvironmentRisks = new[]
+                {
+                    new EnvironmentRisk
+                    {
+                        Id = 2,
+                        Component = "Database Connection",
+                        Description = "Database connection timeout",
+                        Likelihood = RiskLikelihood.High,
+                        Mitigation = new RiskMitigation
+                        {
+                            RequiredChanges = new[] { "Add connection pooling", "Implement retry logic" },
+                            Monitoring = "Monitor connection timeouts and pool exhaustion"
+                        }
+                    }
+                }
+            };
+
+            // Act
+            var report = RuntimeAnalysisFormatter.FormatAsStructuredReport(result);
+
+            // Assert
+            Assert.Contains("ISSUE #2:", report);
+            Assert.Contains("TYPE: Environment", report);
+            Assert.Contains("SEVERITY: High", report);
+            Assert.Contains("DESCRIPTION: Database connection timeout", report);
+            Assert.Contains("TRIGGER: Database Connection dependency failure or misconfiguration", report);
+            Assert.Contains("EXPECTED: Graceful handling of database connection unavailability", report);
+            Assert.Contains("ACTUAL (Simulated): Service failure, timeout, or exception", report);
+            Assert.Contains("SOLUTION: Add connection pooling; Implement retry logic", report);
+            Assert.Contains("VERIFICATION: Monitor connection timeouts and pool exhaustion", report);
+        }
+
+        [Fact]
+        public void FormatAsStructuredReport_WithEdgeCaseFailures_ConvertsToIssueFormat()
+        {
+            // Arrange
+            var result = new RuntimeAnalysisResult
+            {
+                EdgeCaseFailures = new[]
+                {
+                    new EdgeCaseFailure
+                    {
+                        Id = 3,
+                        Input = "null string parameter",
+                        Expected = "ArgumentNullException with clear message",
+                        Actual = "NullReferenceException during string manipulation",
+                        Fix = "Add null parameter validation at method entry"
+                    }
+                }
+            };
+
+            // Act
+            var report = RuntimeAnalysisFormatter.FormatAsStructuredReport(result);
+
+            // Assert
+            Assert.Contains("ISSUE #3:", report);
+            Assert.Contains("TYPE: Logic", report);
+            Assert.Contains("SEVERITY: Medium", report);
+            Assert.Contains("DESCRIPTION: Edge case handling failure for null string parameter", report);
+            Assert.Contains("TRIGGER: null string parameter", report);
+            Assert.Contains("EXPECTED: ArgumentNullException with clear message", report);
+            Assert.Contains("ACTUAL (Simulated): NullReferenceException during string manipulation", report);
+            Assert.Contains("SOLUTION: Add null parameter validation at method entry", report);
+            Assert.Contains("VERIFICATION: Test with edge case inputs including null string parameter", report);
+        }
     }
 }
