@@ -15,7 +15,8 @@ namespace FluentAI.Abstractions.Security
         // Common prompt injection patterns
         private static readonly Regex[] PromptInjectionPatterns = new[]
         {
-            new Regex(@"(ignore\s+(?:previous|all|above|prior)\s+(?:instructions?|prompts?|rules?))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // Enhanced pattern to catch compound injection phrases like "ignore all previous instructions"
+            new Regex(@"(ignore\s+(?:(?:all|previous|above|prior)\s+)*(?:previous|all|above|prior)\s+(?:instructions?|prompts?|rules?))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"(forget\s+(?:everything|all|previous|above))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"(act\s+as\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|character|persona))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"(system\s*[:]\s*)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
@@ -87,14 +88,15 @@ namespace FluentAI.Abstractions.Security
                 }
             }
 
-            // Check for suspicious tokens
+            // Check for suspicious tokens - Improved logic to correctly assess risk levels
             var suspiciousTokenCount = SuspiciousTokens.Count(token => 
                 content.Contains(token, StringComparison.OrdinalIgnoreCase));
             
             if (suspiciousTokenCount > 0)
             {
                 concerns.Add("Suspicious tokens detected");
-                riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, suspiciousTokenCount > 2 ? (int)SecurityRiskLevel.High : (int)SecurityRiskLevel.Medium);
+                // Improved risk assessment: 3+ tokens = High, 1-2 tokens = Medium  
+                riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, suspiciousTokenCount >= 3 ? (int)SecurityRiskLevel.High : (int)SecurityRiskLevel.Medium);
             }
 
             // Check for excessive length (potential DoS)
