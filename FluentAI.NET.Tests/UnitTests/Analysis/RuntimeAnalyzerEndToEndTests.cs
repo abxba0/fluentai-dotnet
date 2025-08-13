@@ -107,13 +107,18 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
         [Fact]
         public async Task EndToEnd_FormattingOutputs_ProduceValidResults()
         {
-            // Arrange
+            // Arrange - Use code that will actually trigger some issues
             var sampleCode = @"
                 public class SampleService
                 {
                     public string ProcessInput(string input)
                     {
                         return input.ToUpper(); // Potential null reference
+                    }
+                    
+                    public int ParseNumber(string value)
+                    {
+                        return int.Parse(value); // Should trigger edge case detection
                     }
                 }";
 
@@ -126,7 +131,7 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             // Test Summary format
             var summary = RuntimeAnalysisFormatter.FormatSummary(result);
             Assert.NotNull(summary);
-            Assert.Contains("Runtime Analysis Summary", summary);
+            Assert.Contains("RUNTIME ANALYSIS SUMMARY", summary);
 
             // Test YAML format
             var yaml = RuntimeAnalysisFormatter.FormatAsYaml(result);
@@ -146,6 +151,7 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             _output.WriteLine($"Summary length: {summary.Length} characters");
             _output.WriteLine($"YAML length: {yaml.Length} characters");
             _output.WriteLine($"JSON length: {json.Length} characters");
+            _output.WriteLine($"Issues detected: {result.TotalIssueCount}");
         }
     }
 }
