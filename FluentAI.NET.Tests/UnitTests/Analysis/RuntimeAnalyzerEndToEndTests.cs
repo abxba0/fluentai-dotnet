@@ -102,6 +102,16 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             {
                 _output.WriteLine(line);
             }
+            _output.WriteLine("");
+
+            // Output new structured format (as specified in issue requirements)
+            var structuredReport = RuntimeAnalysisFormatter.FormatAsStructuredReport(result);
+            var structuredLines = structuredReport.Split('\n').Take(50);
+            _output.WriteLine("=== STRUCTURED FORMAT (first 50 lines) ===");
+            foreach (var line in structuredLines)
+            {
+                _output.WriteLine(line);
+            }
         }
 
         [Fact]
@@ -152,6 +162,52 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             _output.WriteLine($"YAML length: {yaml.Length} characters");
             _output.WriteLine($"JSON length: {json.Length} characters");
             _output.WriteLine($"Issues detected: {result.TotalIssueCount}");
+        }
+
+        [Fact]
+        public async Task EndToEnd_StructuredFormat_MatchesRequiredFormat()
+        {
+            // Arrange - Code with specific issues to validate format
+            var testCode = @"
+                public class TestService
+                {
+                    public static List<string> GlobalCache = new List<string>(); // Mutable static field
+                    
+                    public int ParseInput(string input)
+                    {
+                        return int.Parse(input); // No error handling
+                    }
+                    
+                    public async Task ProcessAsync()
+                    {
+                        // No try-catch in async method
+                        await Task.Delay(1000);
+                    }
+                }";
+
+            // Act
+            var result = await _analyzer.AnalyzeSourceAsync(testCode, "TestService.cs");
+
+            // Assert
+            Assert.True(result.TotalIssueCount > 0, "Should detect issues to validate format");
+
+            // Get structured report
+            var structuredReport = RuntimeAnalysisFormatter.FormatAsStructuredReport(result);
+            
+            // Verify format structure
+            Assert.Contains("ISSUE #", structuredReport);
+            Assert.Contains("TYPE:", structuredReport);
+            Assert.Contains("SEVERITY:", structuredReport);
+            Assert.Contains("DESCRIPTION:", structuredReport);
+            Assert.Contains("TRIGGER:", structuredReport);
+            Assert.Contains("EXPECTED:", structuredReport);
+            Assert.Contains("ACTUAL (Simulated):", structuredReport);
+            Assert.Contains("SOLUTION:", structuredReport);
+            Assert.Contains("VERIFICATION:", structuredReport);
+
+            // Output for verification
+            _output.WriteLine("=== STRUCTURED FORMAT VALIDATION ===");
+            _output.WriteLine(structuredReport);
         }
     }
 }
