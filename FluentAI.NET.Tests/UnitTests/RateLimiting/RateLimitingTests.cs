@@ -27,7 +27,7 @@ namespace FluentAI.NET.Tests.UnitTests.RateLimiting
             // Arrange
             var options = new OpenAiOptions
             {
-                ApiKey = "test-key",
+                ApiKey = "sk-test-api-key-that-is-long-enough-for-validation",
                 Model = "gpt-3.5-turbo",
                 PermitLimit = 5,
                 WindowInSeconds = 10
@@ -63,7 +63,7 @@ namespace FluentAI.NET.Tests.UnitTests.RateLimiting
             // Arrange
             var options = new OpenAiOptions
             {
-                ApiKey = "test-key",
+                ApiKey = "sk-test-api-key-that-is-long-enough-for-validation",
                 Model = "gpt-3.5-turbo",
                 PermitLimit = 2,
                 WindowInSeconds = 60 // Large window to ensure we hit the limit
@@ -99,7 +99,7 @@ namespace FluentAI.NET.Tests.UnitTests.RateLimiting
             // Arrange
             var options = new OpenAiOptions
             {
-                ApiKey = "test-key",
+                ApiKey = "sk-test-api-key-that-is-long-enough-for-validation",
                 Model = "gpt-3.5-turbo"
                 // No PermitLimit or WindowInSeconds configured
             };
@@ -132,7 +132,7 @@ namespace FluentAI.NET.Tests.UnitTests.RateLimiting
             // Arrange
             var options = new OpenAiOptions
             {
-                ApiKey = "test-key",
+                ApiKey = "sk-test-api-key-that-is-long-enough-for-validation",
                 Model = "gpt-3.5-turbo",
                 PermitLimit = 1,
                 WindowInSeconds = 60
