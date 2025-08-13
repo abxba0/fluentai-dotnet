@@ -54,12 +54,13 @@ FluentAI.NET is a comprehensive, production-ready SDK that unifies access to mul
 
 ## 🚀 Supported Providers
 
-| Provider | Models | Streaming | Rate Limiting | Status |
-|----------|---------|-----------|---------------|---------|
-| **OpenAI** | GPT-3.5, GPT-4, GPT-4o | ✅ | ✅ | ✅ Production |
-| **Anthropic** | Claude-3 (Haiku, Sonnet, Opus) | ✅ | ✅ | ✅ Production |
-| **Google AI** | Gemini Pro, Gemini Flash | ✅ | ✅ | ✅ Production |
-| **HuggingFace** | 100,000+ models | ✅ | ✅ | ✅ Production |
+| Provider    | Capability      |
+| ----------- | --------------- |
+| OpenAI      | Text generation |
+| Anthropic   | Text generation |
+| Google AI   | Text generation |
+| HuggingFace | Text generation |
+
 
 **Extensible Architecture** - Add custom providers with minimal code
 
@@ -619,42 +620,3 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - ✅ Private use allowed
 - ❌ No warranty provided
 - ❌ No liability assumed
-
-## 🆘 Support
-
-### **Getting Help**
-
-- 📖 **[Documentation](docs/)** - Comprehensive guides and API reference
-- 🧪 **[Examples](Examples/)** - Working code samples
-- 🐛 **[Issues](https://github.com/abxba0/fluentai-dotnet/issues)** - Bug reports and feature requests
-- 💬 **[Discussions](https://github.com/abxba0/fluentai-dotnet/discussions)** - Questions and community support
-
-### **Enterprise Support**
-
-For enterprise customers, we offer:
-- 🔧 **Priority Support** - Faster response times
-- 📞 **Direct Access** - Direct communication channels
-- 🎯 **Custom Features** - Tailored solutions for your needs
-- 🏢 **Training & Consulting** - Expert guidance and best practices
-
-### **Response Times**
-
-| Type | Community | Enterprise |
-|------|-----------|------------|
-| Bug Reports | 48 hours | 4 hours |
-| Feature Requests | 1 week | 24 hours |
-| Security Issues | 24 hours | 2 hours |
-| General Questions | 1 week | 8 hours |
-
-### **Community**
-
-- 🌟 **Star us on GitHub** - Show your support
-- 🐦 **Follow us on Twitter** - Get updates and news
-- 📢 **Share your success stories** - Help others learn
-- 🤝 **Join our community** - Connect with other developers
-
----
-
-**FluentAI.NET** - Making enterprise-grade AI integration simple, secure, and scalable for .NET developers worldwide.
-
-*Built with ❤️ by the FluentAI team*
