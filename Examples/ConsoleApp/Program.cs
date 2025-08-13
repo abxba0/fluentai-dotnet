@@ -4,6 +4,8 @@ using FluentAI.Abstractions.Performance;
 using FluentAI.Abstractions.Security;
 using FluentAI.Abstractions.Exceptions;
 using FluentAI.Extensions;
+using FluentAI.Extensions.Analysis;
+using FluentAI.Examples.ConsoleApp.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -38,6 +40,9 @@ class Program
                         services.AddGoogleGeminiChatModel(context.Configuration);
                         services.AddHuggingFaceChatModel(context.Configuration);
                         
+                        // Add runtime analyzer
+                        services.AddRuntimeAnalyzer();
+                        
                         // Register application services
                         services.AddTransient<DemoService>();
                         services.AddTransient<ProviderDemoService>();
@@ -45,6 +50,7 @@ class Program
                         services.AddTransient<PerformanceDemoService>();
                         services.AddTransient<ConfigurationDemoService>();
                         services.AddTransient<ErrorHandlingDemoService>();
+                        services.AddTransient<RuntimeAnalysisDemoService>();
                     }
                     catch (Exception ex)
                     {
@@ -144,6 +150,7 @@ public class DemoService
     private readonly PerformanceDemoService _performanceDemo;
     private readonly ConfigurationDemoService _configDemo;
     private readonly ErrorHandlingDemoService _errorDemo;
+    private readonly RuntimeAnalysisDemoService _runtimeAnalysisDemo;
 
     public DemoService(
         IChatModel chatModel,
@@ -152,7 +159,8 @@ public class DemoService
         SecurityDemoService securityDemo,
         PerformanceDemoService performanceDemo,
         ConfigurationDemoService configDemo,
-        ErrorHandlingDemoService errorDemo)
+        ErrorHandlingDemoService errorDemo,
+        RuntimeAnalysisDemoService runtimeAnalysisDemo)
     {
         _chatModel = chatModel;
         _logger = logger;
@@ -161,6 +169,7 @@ public class DemoService
         _performanceDemo = performanceDemo;
         _configDemo = configDemo;
         _errorDemo = errorDemo;
+        _runtimeAnalysisDemo = runtimeAnalysisDemo;
     }
 
     public async Task RunMainMenu()
@@ -205,6 +214,9 @@ public class DemoService
                         break;
                     case "10":
                         await EdgeCaseTestService.RunEdgeCaseTests();
+                        break;
+                    case "11":
+                        await _runtimeAnalysisDemo.RunRuntimeAnalysisDemo();
                         break;
                     case "0":
                     case "exit":
@@ -251,9 +263,10 @@ public class DemoService
         Console.WriteLine("║ 8. 🔧 Advanced Features Demo                               ║");
         Console.WriteLine("║ 9. 💻 Interactive Chat (Original Demo)                     ║");
         Console.WriteLine("║ 10. 🧪 Edge Case & Error Scenario Tests                   ║");
+        Console.WriteLine("║ 11. 🔍 Runtime-Aware Code Analyzer Demo                   ║");
         Console.WriteLine("║ 0. 🚪 Exit                                                  ║");
         Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
-        Console.Write("\nSelect an option (0-10): ");
+        Console.Write("\nSelect an option (0-11): ");
     }
 
     private async Task RunBasicChatDemo()
