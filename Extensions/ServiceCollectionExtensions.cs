@@ -36,34 +36,53 @@ namespace FluentAI.Extensions
         /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddAiSdk(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<AiSdkOptions>(configuration.GetSection("AiSdk"));
+            // Early validation to prevent runtime errors
+            var aiSdkSection = configuration.GetSection("AiSdk");
+            if (!aiSdkSection.Exists())
+            {
+                throw new AiSdkConfigurationException("The 'AiSdk' configuration section is missing. Please add an 'AiSdk' section to your appsettings.json with at least a 'DefaultProvider' specified.");
+            }
+
+            services.Configure<AiSdkOptions>(aiSdkSection);
 
             // Register the chat model factory
             services.AddSingleton<IChatModelFactory, ChatModelFactory>();
 
             services.AddSingleton<IChatModel>(serviceProvider =>
             {
-                var sdkOptions = serviceProvider.GetRequiredService<IOptions<AiSdkOptions>>().Value;
-                var factory = serviceProvider.GetRequiredService<IChatModelFactory>();
-
-                // Check if failover is configured
-                if (sdkOptions.Failover != null && 
-                    !string.IsNullOrEmpty(sdkOptions.Failover.PrimaryProvider) && 
-                    !string.IsNullOrEmpty(sdkOptions.Failover.FallbackProvider))
+                try
                 {
-                    var primaryProvider = factory.GetModel(sdkOptions.Failover.PrimaryProvider);
-                    var fallbackProvider = factory.GetModel(sdkOptions.Failover.FallbackProvider);
-                    var logger = serviceProvider.GetRequiredService<ILogger<FailoverChatModel>>();
-                    
-                    return new FailoverChatModel(primaryProvider, fallbackProvider, logger);
+                    var sdkOptions = serviceProvider.GetRequiredService<IOptions<AiSdkOptions>>().Value;
+                    var factory = serviceProvider.GetRequiredService<IChatModelFactory>();
+
+                    // Check if failover is configured
+                    if (sdkOptions.Failover != null && 
+                        !string.IsNullOrEmpty(sdkOptions.Failover.PrimaryProvider) && 
+                        !string.IsNullOrEmpty(sdkOptions.Failover.FallbackProvider))
+                    {
+                        var primaryProvider = factory.GetModel(sdkOptions.Failover.PrimaryProvider);
+                        var fallbackProvider = factory.GetModel(sdkOptions.Failover.FallbackProvider);
+                        var logger = serviceProvider.GetRequiredService<ILogger<FailoverChatModel>>();
+                        
+                        return new FailoverChatModel(primaryProvider, fallbackProvider, logger);
+                    }
+
+                    // Use default provider if no failover configured
+                    var providerName = sdkOptions.DefaultProvider;
+                    if (string.IsNullOrWhiteSpace(providerName))
+                        throw new AiSdkConfigurationException("A default provider is not specified in the 'AiSdk' configuration section. Please set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'.");
+
+                    return factory.GetModel(providerName);
                 }
-
-                // Use default provider if no failover configured
-                var providerName = sdkOptions.DefaultProvider;
-                if (string.IsNullOrEmpty(providerName))
-                    throw new AiSdkConfigurationException("A default provider is not specified in the 'AiSdk' configuration section.");
-
-                return factory.GetModel(providerName);
+                catch (AiSdkConfigurationException)
+                {
+                    // Re-throw configuration exceptions as-is
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    throw new AiSdkConfigurationException($"Failed to configure the AI SDK. Please check your configuration and ensure all required providers are registered. Details: {ex.Message}", ex);
+                }
             });
 
             return services;

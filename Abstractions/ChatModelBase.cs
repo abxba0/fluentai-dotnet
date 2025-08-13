@@ -1,6 +1,7 @@
 ﻿using FluentAI.Abstractions.Models;
 using FluentAI.Abstractions.Security;
 using FluentAI.Abstractions.Performance;
+using FluentAI.Abstractions.Exceptions;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
@@ -35,8 +36,26 @@ namespace FluentAI.Abstractions
         protected ChatModelBase(ILogger logger, IInputSanitizer? inputSanitizer = null, IPerformanceMonitor? performanceMonitor = null)
         {
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(new Security.LoggerAdapter<DefaultInputSanitizer>(logger));
-            PerformanceMonitor = performanceMonitor ?? new DefaultPerformanceMonitor(new Performance.LoggerAdapter<DefaultPerformanceMonitor>(logger));
+            
+            // Safely create default input sanitizer with proper error handling
+            try
+            {
+                InputSanitizer = inputSanitizer ?? new DefaultInputSanitizer(new Security.LoggerAdapter<DefaultInputSanitizer>(logger));
+            }
+            catch (Exception ex)
+            {
+                throw new AiSdkConfigurationException("Cannot create default input sanitizer. Ensure that logging is properly configured in your application.", ex);
+            }
+            
+            // Safely create default performance monitor with proper error handling
+            try
+            {
+                PerformanceMonitor = performanceMonitor ?? new DefaultPerformanceMonitor(new Performance.LoggerAdapter<DefaultPerformanceMonitor>(logger));
+            }
+            catch (Exception ex)
+            {
+                throw new AiSdkConfigurationException("Cannot create default performance monitor. Ensure that logging is properly configured in your application.", ex);
+            }
         }
 
         /// <summary>
