@@ -67,7 +67,6 @@ namespace FluentAI.Providers.Google
 
             var requestUri = $"/v1beta/models/{currentOptions.Model}:streamGenerateContent?key={currentOptions.ApiKey}";
             using var request = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = JsonContent.Create(requestDto) };
-            request.Headers.Add("Content-Type", "application/json");
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(currentOptions.RequestTimeout);
@@ -190,7 +189,6 @@ namespace FluentAI.Providers.Google
             {
                 Content = JsonContent.Create(requestDto)
             };
-            request.Headers.Add("Content-Type", "application/json");
 
             return await httpClient.SendAsync(request, cancellationToken);
         }
