@@ -26,4 +26,10 @@ public record HuggingFaceRequestOptions : ChatRequestOptions
     /// Gets or sets the top-k sampling parameter.
     /// </summary>
     public int? TopK { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the model to use for chat completions (e.g., "openai/gpt-oss-20b").
+    /// This is required when using the HuggingFace chat completions endpoint.
+    /// </summary>
+    public string? Model { get; set; }
 }

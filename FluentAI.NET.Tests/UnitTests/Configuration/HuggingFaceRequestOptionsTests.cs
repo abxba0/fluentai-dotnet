@@ -141,7 +141,8 @@ public class HuggingFaceRequestOptionsTests
             Temperature = 0.8f,
             MaxNewTokens = 512,
             TopP = 0.95f,
-            TopK = 40
+            TopK = 40,
+            Model = "openai/gpt-oss-20b"
         };
 
         // EXPECTED: All properties store their values correctly
@@ -149,6 +150,7 @@ public class HuggingFaceRequestOptionsTests
         Assert.Equal(512, options.MaxNewTokens);
         Assert.Equal(0.95f, options.TopP);
         Assert.Equal(40, options.TopK);
+        Assert.Equal("openai/gpt-oss-20b", options.Model);
     }
 
     // TEST #11: Record equality - instances with same values are equal
@@ -161,7 +163,8 @@ public class HuggingFaceRequestOptionsTests
             Temperature = 0.7f,
             MaxNewTokens = 1000,
             TopP = 0.9f,
-            TopK = 50
+            TopK = 50,
+            Model = "test-model"
         };
         
         var options2 = new HuggingFaceRequestOptions
@@ -169,7 +172,8 @@ public class HuggingFaceRequestOptionsTests
             Temperature = 0.7f,
             MaxNewTokens = 1000,
             TopP = 0.9f,
-            TopK = 50
+            TopK = 50,
+            Model = "test-model"
         };
 
         // EXPECTED: Record equality returns true
@@ -178,7 +182,21 @@ public class HuggingFaceRequestOptionsTests
         Assert.False(options1 != options2);
     }
 
-    // TEST #12: Record inequality - instances with different values are not equal
+    // TEST #12: Normal case - Model property set and get
+    [Fact]
+    public void Model_SetAndGet_StoresValueCorrectly()
+    {
+        // INPUT: Set Model property to valid model name
+        var options = new HuggingFaceRequestOptions();
+        var expectedModel = "openai/gpt-oss-20b";
+
+        // EXPECTED: Property stores and returns the value
+        options.Model = expectedModel;
+        
+        Assert.Equal(expectedModel, options.Model);
+    }
+
+    // TEST #13: Record inequality - instances with different values are not equal
     [Fact]
     public void RecordEquality_DifferentValues_AreNotEqual()
     {
