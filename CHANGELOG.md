@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.2] - 2025-01-XX
 
 ### Added
-- Multi-provider support (OpenAI, Anthropic, Google AI, HuggingFace)
+- Multi-provider support (OpenAI, Anthropic, Google AI)
 - Streaming response capabilities
 - Rate limiting with sliding window
 - Automatic failover between providers
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core Abstractions**: `IChatModel`, `IChatModelFactory`
 - **Security**: `IInputSanitizer`, risk assessment, content filtering
 - **Performance**: `IPerformanceMonitor`, `IResponseCache`, metrics collection
-- **Providers**: OpenAI, Anthropic, Google AI, HuggingFace implementations
+- **Providers**: OpenAI, Anthropic, Google AI implementations
 - **Configuration**: Strongly-typed options with validation
 - **Resilience**: Rate limiting, circuit breakers, automatic failover
 
@@ -55,7 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OpenAI**: GPT-3.5 Turbo, GPT-4, GPT-4o models
 - **Anthropic**: Claude-3 family (Haiku, Sonnet, Opus)
 - **Google AI**: Gemini Pro and Flash models
-- **HuggingFace**: Access to 100,000+ open-source models
 
 ### Security
 - Input sanitization and prompt injection detection
@@ -157,7 +156,6 @@ Features are deprecated using this timeline:
 | OpenAI | v1 | ✅ Full Support |
 | Anthropic | 2023-06-01 | ✅ Full Support |
 | Google AI | v1 | ✅ Full Support |
-| HuggingFace | Inference API | ✅ Full Support |
 
 ## Upgrade Guides
 

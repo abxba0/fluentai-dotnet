@@ -12,7 +12,7 @@ This document outlines the comprehensive test scenarios implemented for FluentAI
 Validate FluentAI.NET Universal AI SDK provides reliable, secure, and performant access to multiple AI providers through a unified interface.
 
 ### EXPECTED BEHAVIOR
-- **Provider Agnostic**: Seamless switching between OpenAI, Anthropic, Google, and HuggingFace providers
+- **Provider Agnostic**: Seamless switching between OpenAI, Anthropic, and Google providers
 - **Configuration Driven**: Flexible setup via dependency injection and configuration
 - **Stream Support**: Real-time token streaming capabilities across all providers
 - **Error Resilience**: Graceful handling of network failures, API errors, and configuration issues

@@ -323,38 +323,6 @@ namespace FluentAI.Configuration
 }
 ```
 
-##### HuggingFaceRequestOptions
-
-```csharp
-namespace FluentAI.Configuration
-{
-    public record HuggingFaceRequestOptions : ChatRequestOptions
-    {
-        public float? Temperature { get; set; }
-        public int? MaxNewTokens { get; set; }
-        public float? TopP { get; set; }
-        public int? TopK { get; set; }
-        public string? Model { get; set; }
-    }
-}
-```
-
-**Special Notes for HuggingFace:**
-
-The HuggingFace provider supports two endpoint types with automatic detection:
-
-1. **Chat Completions Endpoint** (OpenAI-compatible): When `ModelId` contains "/chat/completions"
-   - Uses OpenAI-compatible request/response format
-   - Requires `Model` property to specify the model (e.g., "openai/gpt-oss-20b")
-   - Provides proper token usage in responses
-   - Example: `https://router.huggingface.co/v1/chat/completions`
-
-2. **Traditional Inference API**: When `ModelId` does not contain "/chat/completions"
-   - Uses traditional HuggingFace inference format
-   - `Model` property is ignored
-   - Token usage not available (returns 0 values)
-   - Example: `https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium`
-
 ## Security
 
 ### IInputSanitizer
@@ -511,7 +479,6 @@ namespace FluentAI.Extensions
         public static IServiceCollection AddOpenAiChatModel(this IServiceCollection services, IConfiguration configuration);
         public static IServiceCollection AddAnthropicChatModel(this IServiceCollection services, IConfiguration configuration);
         public static IServiceCollection AddGoogleGeminiChatModel(this IServiceCollection services, IConfiguration configuration);
-        public static IServiceCollection AddHuggingFaceChatModel(this IServiceCollection services, IConfiguration configuration);
     }
 }
 ```
@@ -528,7 +495,6 @@ namespace FluentAI.Extensions
         IFluentAiBuilder AddOpenAI(Action<OpenAiOptions> configure);
         IFluentAiBuilder AddAnthropic(Action<AnthropicOptions> configure);
         IFluentAiBuilder AddGoogle(Action<GoogleOptions> configure);
-        IFluentAiBuilder AddHuggingFace(Action<HuggingFaceOptions> configure);
         IFluentAiBuilder UseDefaultProvider(string providerName);
     }
 }
@@ -639,40 +605,6 @@ var options = new OpenAiRequestOptions
 
 var response = await chatModel.GetResponseAsync(messages, options);
 ```
-
-#### HuggingFace Chat Completions
-
-```csharp
-// HuggingFace with chat completions endpoint
-var huggingFaceOptions = new HuggingFaceRequestOptions
-{
-    Model = "openai/gpt-oss-20b",  // Required for chat completions
-    Temperature = 0.7f,
-    MaxNewTokens = 1000,
-    TopP = 0.9f
-};
-
-var messages = new[]
-{
-    new ChatMessage(ChatRole.User, "Hello! Please introduce yourself briefly.")
-};
-
-var response = await chatModel.GetResponseAsync(messages, huggingFaceOptions);
-
-// Now returns proper token usage instead of Input=0, Output=0
-Console.WriteLine($"Token Usage: Input={response.Usage.InputTokens}, Output={response.Usage.OutputTokens}");
-```
-
-**Configuration for HuggingFace Chat Completions:**
-
-```json
-{
-  "HuggingFace": {
-    "ApiKey": "hf_your_token_here",
-    "ModelId": "https://router.huggingface.co/v1/chat/completions",
-    "RequestTimeout": "00:02:00"
-  }
-}
 
 ### Streaming Response
 

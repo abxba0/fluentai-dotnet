@@ -78,8 +78,7 @@ FluentAI.NET/
 ├── Providers/             # AI provider implementations
 │   ├── OpenAI/           # OpenAI provider
 │   ├── Anthropic/        # Anthropic provider
-│   ├── Google/           # Google AI provider
-│   └── HuggingFace/      # HuggingFace provider
+│   └── Google/           # Google AI provider
 ├── Configuration/         # Configuration models
 ├── Extensions/           # Service registration extensions
 ├── Examples/             # Example applications

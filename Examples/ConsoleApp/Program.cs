@@ -38,7 +38,6 @@ class Program
                         services.AddOpenAiChatModel(context.Configuration);
                         services.AddAnthropicChatModel(context.Configuration);
                         services.AddGoogleGeminiChatModel(context.Configuration);
-                        services.AddHuggingFaceChatModel(context.Configuration);
                         
                         // Add runtime analyzer
                         services.AddRuntimeAnalyzer();
@@ -62,7 +61,7 @@ class Program
                         Console.WriteLine();
                         Console.WriteLine("💡 Troubleshooting:");
                         Console.WriteLine("   • Ensure appsettings.json exists and contains an 'AiSdk' section");
-                        Console.WriteLine("   • Set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', 'HuggingFace'");
+                        Console.WriteLine("   • Set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google'");
                         Console.WriteLine("   • Ensure required environment variables are set (e.g., OPENAI_API_KEY)");
                         Console.WriteLine();
                         
@@ -92,7 +91,7 @@ class Program
                 Console.WriteLine();
                 Console.WriteLine("💡 Troubleshooting:");
                 Console.WriteLine("   • Check your appsettings.json for the 'AiSdk' section");
-                Console.WriteLine("   • Ensure 'AiSdk:DefaultProvider' is set to: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'");
+                Console.WriteLine("   • Ensure 'AiSdk:DefaultProvider' is set to: 'OpenAI', 'Anthropic', or 'Google'");
                 Console.WriteLine("   • Verify that the specified provider is properly registered and configured");
                 Console.WriteLine("   • Check that required environment variables are set (e.g., OPENAI_API_KEY)");
                 Console.WriteLine();
@@ -366,7 +365,7 @@ public class DemoService
 
         Console.WriteLine("🔧 Advanced features available in FluentAI.NET:");
         Console.WriteLine();
-        Console.WriteLine("✅ Multi-provider support (OpenAI, Anthropic, Google, HuggingFace)");
+        Console.WriteLine("✅ Multi-provider support (OpenAI, Anthropic, Google)");
         Console.WriteLine("✅ Automatic failover between providers");
         Console.WriteLine("✅ Rate limiting with sliding window");
         Console.WriteLine("✅ Response caching for performance");
