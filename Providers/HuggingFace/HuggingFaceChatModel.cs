@@ -130,44 +130,87 @@ namespace FluentAI.Providers.HuggingFace
             var messageList = base.ValidateMessages(messages, configOptions.MaxRequestSize);
             var providerOptions = requestOptions as HuggingFaceRequestOptions;
 
-            // Convert messages to a single input string for Hugging Face
-            var inputText = BuildInputText(messageList);
+            // Check if using the chat completions endpoint (OpenAI-compatible format)
+            bool isChatCompletionsEndpoint = configOptions.ModelId?.Contains("/chat/completions") == true;
 
-            var requestDict = new Dictionary<string, object>
+            if (isChatCompletionsEndpoint)
             {
-                ["inputs"] = inputText,
-                ["stream"] = stream
-            };
+                // Use OpenAI-compatible format for chat completions endpoint
+                var requestDict = new Dictionary<string, object>
+                {
+                    ["messages"] = messageList.Select(m => new Dictionary<string, object>
+                    {
+                        ["role"] = m.Role.ToString().ToLowerInvariant(),
+                        ["content"] = m.Content
+                    }).ToArray(),
+                    ["stream"] = stream
+                };
 
-            // Add parameters if specified
-            var parameters = new Dictionary<string, object>();
-            
-            if (providerOptions?.Temperature.HasValue == true)
-            {
-                parameters["temperature"] = providerOptions.Temperature.Value;
-            }
-            
-            if (providerOptions?.MaxNewTokens.HasValue == true)
-            {
-                parameters["max_new_tokens"] = providerOptions.MaxNewTokens.Value;
-            }
-            
-            if (providerOptions?.TopP.HasValue == true)
-            {
-                parameters["top_p"] = providerOptions.TopP.Value;
-            }
-            
-            if (providerOptions?.TopK.HasValue == true)
-            {
-                parameters["top_k"] = providerOptions.TopK.Value;
-            }
+                // Add model if specified in options or derive from endpoint
+                if (!string.IsNullOrEmpty(providerOptions?.Model))
+                {
+                    requestDict["model"] = providerOptions.Model;
+                }
 
-            if (parameters.Count > 0)
-            {
-                requestDict["parameters"] = parameters;
-            }
+                // Add parameters if specified
+                if (providerOptions?.Temperature.HasValue == true)
+                {
+                    requestDict["temperature"] = providerOptions.Temperature.Value;
+                }
+                
+                if (providerOptions?.MaxNewTokens.HasValue == true)
+                {
+                    requestDict["max_tokens"] = providerOptions.MaxNewTokens.Value;
+                }
+                
+                if (providerOptions?.TopP.HasValue == true)
+                {
+                    requestDict["top_p"] = providerOptions.TopP.Value;
+                }
 
-            return requestDict;
+                return requestDict;
+            }
+            else
+            {
+                // Use traditional Hugging Face Inference API format
+                var inputText = BuildInputText(messageList);
+
+                var requestDict = new Dictionary<string, object>
+                {
+                    ["inputs"] = inputText,
+                    ["stream"] = stream
+                };
+
+                // Add parameters if specified
+                var parameters = new Dictionary<string, object>();
+                
+                if (providerOptions?.Temperature.HasValue == true)
+                {
+                    parameters["temperature"] = providerOptions.Temperature.Value;
+                }
+                
+                if (providerOptions?.MaxNewTokens.HasValue == true)
+                {
+                    parameters["max_new_tokens"] = providerOptions.MaxNewTokens.Value;
+                }
+                
+                if (providerOptions?.TopP.HasValue == true)
+                {
+                    parameters["top_p"] = providerOptions.TopP.Value;
+                }
+                
+                if (providerOptions?.TopK.HasValue == true)
+                {
+                    parameters["top_k"] = providerOptions.TopK.Value;
+                }
+
+                if (parameters.Count > 0)
+                {
+                    requestDict["parameters"] = parameters;
+                }
+
+                return requestDict;
+            }
         }
 
         private string BuildInputText(List<ChatMessage> messages)
@@ -210,11 +253,55 @@ namespace FluentAI.Providers.HuggingFace
             using var jsonDoc = JsonDocument.Parse(content);
             
             var messageContent = string.Empty;
-            
-            // Hugging Face Inference API returns an array with generated_text
-            if (jsonDoc.RootElement.ValueKind == JsonValueKind.Array && 
-                jsonDoc.RootElement.GetArrayLength() > 0)
+            var modelId = "huggingface-inference";
+            var finishReason = "stop";
+            var inputTokens = 0;
+            var outputTokens = 0;
+
+            // Check if this is an OpenAI-compatible chat completions response
+            if (jsonDoc.RootElement.ValueKind == JsonValueKind.Object && 
+                jsonDoc.RootElement.TryGetProperty("choices", out var choices) && 
+                choices.ValueKind == JsonValueKind.Array)
             {
+                // OpenAI-compatible format from chat completions endpoint
+                if (choices.GetArrayLength() > 0)
+                {
+                    var firstChoice = choices[0];
+                    if (firstChoice.TryGetProperty("message", out var message) &&
+                        message.TryGetProperty("content", out var messageContentProp))
+                    {
+                        messageContent = messageContentProp.GetString() ?? string.Empty;
+                    }
+
+                    if (firstChoice.TryGetProperty("finish_reason", out var finishReasonProp))
+                    {
+                        finishReason = finishReasonProp.GetString() ?? "stop";
+                    }
+                }
+
+                // Extract model ID
+                if (jsonDoc.RootElement.TryGetProperty("model", out var modelProp))
+                {
+                    modelId = modelProp.GetString() ?? "huggingface-inference";
+                }
+
+                // Extract token usage
+                if (jsonDoc.RootElement.TryGetProperty("usage", out var usage))
+                {
+                    if (usage.TryGetProperty("prompt_tokens", out var promptTokens))
+                    {
+                        inputTokens = promptTokens.GetInt32();
+                    }
+                    if (usage.TryGetProperty("completion_tokens", out var completionTokens))
+                    {
+                        outputTokens = completionTokens.GetInt32();
+                    }
+                }
+            }
+            else if (jsonDoc.RootElement.ValueKind == JsonValueKind.Array && 
+                     jsonDoc.RootElement.GetArrayLength() > 0)
+            {
+                // Traditional Hugging Face Inference API format
                 var firstElement = jsonDoc.RootElement[0];
                 if (firstElement.TryGetProperty("generated_text", out var generatedText))
                 {
@@ -231,11 +318,11 @@ namespace FluentAI.Providers.HuggingFace
 
             return new ChatResponse(
                 Content: messageContent,
-                ModelId: "huggingface-inference",
-                FinishReason: "stop",
+                ModelId: modelId,
+                FinishReason: finishReason,
                 Usage: new TokenUsage(
-                    InputTokens: 0, // Hugging Face doesn't provide token usage in basic inference
-                    OutputTokens: 0
+                    InputTokens: inputTokens,
+                    OutputTokens: outputTokens
                 )
             );
         }
