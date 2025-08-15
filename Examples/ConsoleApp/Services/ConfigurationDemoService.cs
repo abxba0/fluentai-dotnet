@@ -193,12 +193,6 @@ public class ConfigurationDemoService
         Console.WriteLine("   • SafetySettings: Content safety controls");
         Console.WriteLine();
 
-        Console.WriteLine("🤗 HuggingFace Provider:");
-        Console.WriteLine("   • ApiKey: Your HuggingFace API key");
-        Console.WriteLine("   • ModelId: Specific model identifier");
-        Console.WriteLine("   • MaxTokens: Maximum response tokens");
-        Console.WriteLine("   • UseInferenceApi: Use hosted inference");
-
         await Task.CompletedTask;
     }
 
@@ -212,8 +206,7 @@ public class ConfigurationDemoService
         {
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY", 
-            "GOOGLE_API_KEY",
-            "HUGGINGFACE_API_KEY"
+            "GOOGLE_API_KEY"
         };
 
         Console.WriteLine("🔍 Checking environment variables:");

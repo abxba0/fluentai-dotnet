@@ -2,7 +2,6 @@ using FluentAI.Abstractions;
 using FluentAI.Abstractions.Exceptions;
 using FluentAI.Providers.Anthropic;
 using FluentAI.Providers.Google;
-using FluentAI.Providers.HuggingFace;
 using FluentAI.Providers.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,9 +34,7 @@ namespace FluentAI.Abstractions
                                ?? throw new AiSdkConfigurationException($"Anthropic provider is not registered. Please ensure you have called services.AddAnthropicChatModel(configuration) and provided valid Anthropic configuration including API key via environment variable 'ANTHROPIC_API_KEY' or configuration."),
                 "google" => _serviceProvider.GetService<GoogleGeminiChatModel>()
                            ?? throw new AiSdkConfigurationException($"Google provider is not registered. Please ensure you have called services.AddGoogleGeminiChatModel(configuration) and provided valid Google configuration including API key via environment variable 'GOOGLE_API_KEY' or configuration."),
-                "huggingface" => _serviceProvider.GetService<HuggingFaceChatModel>()
-                                ?? throw new AiSdkConfigurationException($"Hugging Face provider is not registered. Please ensure you have called services.AddHuggingFaceChatModel(configuration) and provided valid HuggingFace configuration including API key via environment variable 'HUGGINGFACE_API_KEY' or configuration."),
-                _ => throw new AiSdkConfigurationException($"Provider '{providerName}' is not supported. Supported providers are: 'OpenAI', 'Anthropic', 'Google', 'HuggingFace'.")
+                _ => throw new AiSdkConfigurationException($"Provider '{providerName}' is not supported. Supported providers are: 'OpenAI', 'Anthropic', 'Google'.")
             };
         }
     }

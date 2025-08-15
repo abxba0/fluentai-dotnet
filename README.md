@@ -30,7 +30,7 @@ FluentAI.NET is a comprehensive, production-ready SDK that unifies access to mul
 ## ✨ Key Features
 
 ### 🌟 **Production-Ready Architecture**
-✅ **Multi-Provider Support** - OpenAI, Anthropic, Google AI, HuggingFace with unified interface  
+✅ **Multi-Provider Support** - OpenAI, Anthropic, Google AI with unified interface  
 ✅ **Enterprise Security** - Input sanitization, content filtering, risk assessment  
 ✅ **Advanced Resilience** - Rate limiting, automatic failover, circuit breakers  
 ✅ **Performance Optimized** - Response caching, memory management, streaming support  
@@ -59,7 +59,6 @@ FluentAI.NET is a comprehensive, production-ready SDK that unifies access to mul
 | OpenAI      | Text generation |
 | Anthropic   | Text generation |
 | Google AI   | Text generation |
-| HuggingFace | Text generation |
 
 
 **Extensible Architecture** - Add custom providers with minimal code
@@ -87,7 +86,6 @@ dotnet add package FluentAI.NET
 export OPENAI_API_KEY="your-openai-api-key"
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
 export GOOGLE_API_KEY="your-google-api-key"
-export HUGGINGFACE_API_KEY="your-huggingface-api-key"
 ```
 
 ### 2. Configure Services
@@ -100,8 +98,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAiSdk(builder.Configuration)
     .AddOpenAiChatModel(builder.Configuration)
     .AddAnthropicChatModel(builder.Configuration)
-    .AddGoogleGeminiChatModel(builder.Configuration)
-    .AddHuggingFaceChatModel(builder.Configuration);
+    .AddGoogleGeminiChatModel(builder.Configuration);
 
 var app = builder.Build();
 ```

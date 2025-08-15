@@ -336,12 +336,6 @@ public class BoundaryConditionTests
                 config.Model = "gemini-pro";
                 config.RequestTimeout = TimeSpan.FromSeconds(60);
             })
-            .AddHuggingFace(config => 
-            {
-                config.ApiKey = "hf-key";
-                config.ModelId = "microsoft/DialoGPT-medium";
-                config.RequestTimeout = TimeSpan.FromSeconds(90);
-            })
             .UseDefaultProvider("OpenAI");
         
         Assert.NotNull(builder);

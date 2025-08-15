@@ -5,7 +5,6 @@ using FluentAI.Abstractions.Exceptions;
 using FluentAI.Configuration;
 using FluentAI.Providers.Anthropic;
 using FluentAI.Providers.Google;
-using FluentAI.Providers.HuggingFace;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -75,7 +74,7 @@ namespace FluentAI.Extensions
                     if (string.IsNullOrWhiteSpace(providerName))
                     {
                         var diagnosticMessage = CreateConfigurationDiagnostic(true, providerName ?? "[Not Specified]");
-                        throw new AiSdkConfigurationException($"{diagnosticMessage}\nConfiguration Error: A default provider is not specified in the 'AiSdk' configuration section. Please set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', 'Google', or 'HuggingFace'.");
+                        throw new AiSdkConfigurationException($"{diagnosticMessage}\nConfiguration Error: A default provider is not specified in the 'AiSdk' configuration section. Please set 'AiSdk:DefaultProvider' to one of: 'OpenAI', 'Anthropic', or 'Google'.");
                     }
 
                     return factory.GetModel(providerName);
@@ -148,20 +147,6 @@ namespace FluentAI.Extensions
             services.AddSingleton<GoogleGeminiChatModel>();
             return services;
         }
-
-        /// <summary>
-        /// Adds Hugging Face chat model provider to the dependency injection container.
-        /// </summary>
-        /// <param name="services">The service collection.</param>
-        /// <param name="configuration">The configuration.</param>
-        /// <returns>The service collection for chaining.</returns>
-        public static IServiceCollection AddHuggingFaceChatModel(this IServiceCollection services, IConfiguration configuration)
-        {
-            services.Configure<HuggingFaceOptions>(configuration.GetSection("HuggingFace"));
-            services.AddHttpClient("HuggingFaceClient");
-            services.AddSingleton<HuggingFaceChatModel>();
-            return services;
-        }
     }
 
     /// <summary>
@@ -194,13 +179,6 @@ namespace FluentAI.Extensions
         /// <param name="configure">Configuration action for Google options.</param>
         /// <returns>The builder for chaining.</returns>
         IFluentAiBuilder AddGoogle(Action<GoogleOptions> configure);
-
-        /// <summary>
-        /// Adds Hugging Face provider to the FluentAI configuration.
-        /// </summary>
-        /// <param name="configure">Configuration action for Hugging Face options.</param>
-        /// <returns>The builder for chaining.</returns>
-        IFluentAiBuilder AddHuggingFace(Action<HuggingFaceOptions> configure);
 
         /// <summary>
         /// Sets the default provider to use when multiple providers are registered.
@@ -290,26 +268,6 @@ namespace FluentAI.Extensions
                 client.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
             });
             Services.AddSingleton<GoogleGeminiChatModel>();
-            
-            return this;
-        }
-
-        public IFluentAiBuilder AddHuggingFace(Action<HuggingFaceOptions> configure)
-        {
-            var options = new HuggingFaceOptions();
-            configure(options);
-
-            Services.Configure<HuggingFaceOptions>(opt =>
-            {
-                opt.ApiKey = options.ApiKey;
-                opt.ModelId = options.ModelId;
-                opt.RequestTimeout = options.RequestTimeout;
-                opt.MaxRetries = options.MaxRetries;
-                opt.MaxRequestSize = options.MaxRequestSize;
-            });
-
-            Services.AddHttpClient("HuggingFaceClient");
-            Services.AddSingleton<HuggingFaceChatModel>();
             
             return this;
         }

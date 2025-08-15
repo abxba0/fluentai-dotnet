@@ -34,11 +34,5 @@
     "MaxTokens": 500,
     "RequestTimeout": "00:01:30",
     "Temperature": 0.7
-  },
-  "HuggingFace": {
-    "ModelId": "microsoft/DialoGPT-large",
-    "MaxTokens": 500,
-    "RequestTimeout": "00:01:30",
-    "Temperature": 0.7
   }
 }

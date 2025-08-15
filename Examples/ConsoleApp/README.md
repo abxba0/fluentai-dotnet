@@ -99,9 +99,6 @@ User secrets provide a secure way to store API keys during development without e
    
    # Google AI
    dotnet user-secrets set "GOOGLE_API_KEY" "your-actual-google-api-key"
-   
-   # HuggingFace
-   dotnet user-secrets set "HUGGINGFACE_API_KEY" "your-actual-huggingface-api-key"
    ```
 
 4. **List all configured secrets** to verify:
@@ -114,7 +111,6 @@ User secrets provide a secure way to store API keys during development without e
    OPENAI_API_KEY = sk-proj-abcd1234...
    ANTHROPIC_API_KEY = sk-ant-api03-xyz...
    GOOGLE_API_KEY = AIzaSyABC123...
-   HUGGINGFACE_API_KEY = hf_DEF456...
    ```
 
 ##### Managing User Secrets
@@ -150,9 +146,6 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 
 # Google AI
 export GOOGLE_API_KEY="your-google-api-key"
-
-# HuggingFace
-export HUGGINGFACE_API_KEY="your-huggingface-api-key"
 ```
 
 **Windows PowerShell:**
@@ -160,7 +153,6 @@ export HUGGINGFACE_API_KEY="your-huggingface-api-key"
 $env:OPENAI_API_KEY="your-openai-api-key"
 $env:ANTHROPIC_API_KEY="your-anthropic-api-key"
 $env:GOOGLE_API_KEY="your-google-api-key"
-$env:HUGGINGFACE_API_KEY="your-huggingface-api-key"
 ```
 
 **Windows Command Prompt:**
@@ -168,7 +160,6 @@ $env:HUGGINGFACE_API_KEY="your-huggingface-api-key"
 set OPENAI_API_KEY=your-openai-api-key
 set ANTHROPIC_API_KEY=your-anthropic-api-key
 set GOOGLE_API_KEY=your-google-api-key
-set HUGGINGFACE_API_KEY=your-huggingface-api-key
 ```
 
 ### Troubleshooting API Key Configuration
@@ -271,7 +262,6 @@ services.AddAiSdk(context.Configuration);
 services.AddOpenAiChatModel(context.Configuration);
 services.AddAnthropicChatModel(context.Configuration);
 services.AddGoogleGeminiChatModel(context.Configuration);
-services.AddHuggingFaceChatModel(context.Configuration);
 ```
 
 ### Demo Services

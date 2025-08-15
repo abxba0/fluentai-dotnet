@@ -119,15 +119,6 @@ public class ProviderDemoService
         Console.WriteLine("   • Integration with Google Cloud services");
         Console.WriteLine();
 
-        // HuggingFace specific features
-        Console.WriteLine("🤗 HuggingFace Features:");
-        Console.WriteLine("   • Access to 100,000+ open-source models");
-        Console.WriteLine("   • Community-driven model ecosystem");
-        Console.WriteLine("   • Custom model deployment options");
-        Console.WriteLine("   • Free tier with rate limits");
-        Console.WriteLine("   • Support for specialized domain models");
-        Console.WriteLine();
-
         Console.WriteLine("💡 Key Benefits:");
         Console.WriteLine("   ✅ Single interface (IChatModel) for all providers");
         Console.WriteLine("   ✅ Easy provider switching via configuration");
