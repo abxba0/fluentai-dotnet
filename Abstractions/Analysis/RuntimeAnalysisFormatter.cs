@@ -28,9 +28,11 @@ namespace FluentAI.Abstractions.Analysis
             report.AppendLine($"Total Issues: {result.TotalIssueCount}");
             report.AppendLine();
 
-            // Runtime Issues in the exact format specified
+            // Logical Issues section
             if (result.RuntimeIssues.Any())
             {
+                report.AppendLine("Logical Issues");
+                report.AppendLine("==============");
                 foreach (var issue in result.RuntimeIssues)
                 {
                     report.AppendLine($"ISSUE #{issue.Id}:");
@@ -38,42 +40,54 @@ namespace FluentAI.Abstractions.Analysis
                     report.AppendLine($"SEVERITY: {issue.Severity}");
                     report.AppendLine($"DESCRIPTION: {issue.Description}");
                     report.AppendLine("PROOF:");
-                    report.AppendLine($"  - Simulated Execution Step: {issue.Proof.SimulatedExecutionStep}");
-                    report.AppendLine($"  - Trigger: {issue.Proof.Trigger}");
-                    report.AppendLine($"  - Result: {issue.Proof.Result}");
+                    report.AppendLine($"  Precondition: {GetPreconditionFromProof(issue.Proof)}");
+                    report.AppendLine($"  Operation: {issue.Proof.SimulatedExecutionStep}");
+                    report.AppendLine($"  Result: {issue.Proof.Result}");
+                    report.AppendLine($"TRIGGER: {issue.Proof.Trigger}");
+                    report.AppendLine($"EXPECTED: {GetExpectedBehavior(issue)}");
+                    report.AppendLine($"ACTUAL (Simulated): {issue.Proof.Result}");
                     report.AppendLine("SOLUTION:");
-                    report.AppendLine($"  - Fix: {issue.Solution.Fix}");
-                    report.AppendLine($"  - Verification: {issue.Solution.Verification}");
+                    report.AppendLine($"  Fix: {issue.Solution.Fix}");
+                    report.AppendLine($"VERIFICATION: {issue.Solution.Verification}");
                     report.AppendLine();
                 }
             }
 
-            // Environment Risks
+            // State Management Issues section (derived from Environment Risks)
             if (result.EnvironmentRisks.Any())
             {
+                report.AppendLine("State Management Issues");
+                report.AppendLine("======================");
                 foreach (var risk in result.EnvironmentRisks)
                 {
-                    report.AppendLine($"RISK #{risk.Id}:");
+                    report.AppendLine($"STATE_ISSUE #{risk.Id}:");
                     report.AppendLine($"COMPONENT: {risk.Component}");
-                    report.AppendLine($"DESCRIPTION: {risk.Description}");
-                    report.AppendLine($"LIKELIHOOD: {risk.Likelihood}");
-                    report.AppendLine("MITIGATION:");
-                    report.AppendLine($"  - Required Changes: {string.Join(", ", risk.Mitigation.RequiredChanges)}");
-                    report.AppendLine($"  - Monitoring: {risk.Mitigation.Monitoring}");
+                    report.AppendLine($"SCENARIO: {GetScenarioFromRisk(risk)}");
+                    report.AppendLine("CURRENT_BEHAVIOR:");
+                    report.AppendLine($"  State Changes: {GetStateChangesFromRisk(risk)}");
+                    report.AppendLine($"  Problems: {risk.Description}");
+                    report.AppendLine("CORRECTION:");
+                    report.AppendLine($"  Required Changes: {string.Join("; ", risk.Mitigation.RequiredChanges)}");
+                    report.AppendLine($"  Implementation: {GetImplementationFromRisk(risk)}");
+                    report.AppendLine($"  Tests: {risk.Mitigation.Monitoring}");
                     report.AppendLine();
                 }
             }
 
-            // Edge Case Failures
+            // Implementation Gaps section (derived from Edge Cases)
             if (result.EdgeCaseFailures.Any())
             {
+                report.AppendLine("Implementation Gaps");
+                report.AppendLine("===================");
                 foreach (var edgeCase in result.EdgeCaseFailures)
                 {
-                    report.AppendLine($"CASE #{edgeCase.Id}:");
-                    report.AppendLine($"INPUT: {edgeCase.Input}");
-                    report.AppendLine($"EXPECTED: {edgeCase.Expected}");
-                    report.AppendLine($"ACTUAL (Simulated): {edgeCase.Actual}");
-                    report.AppendLine($"FIX: {edgeCase.Fix}");
+                    report.AppendLine($"GAP #{edgeCase.Id}:");
+                    report.AppendLine($"MISSING: {edgeCase.Input}");
+                    report.AppendLine($"IMPACT: {GetImpactFromEdgeCase(edgeCase)}");
+                    report.AppendLine("IMPLEMENTATION:");
+                    report.AppendLine($"  Requirements: {GetRequirementsFromEdgeCase(edgeCase)}");
+                    report.AppendLine($"  Solution: {edgeCase.Fix}");
+                    report.AppendLine($"  Tests: {GetTestsFromEdgeCase(edgeCase)}");
                     report.AppendLine();
                 }
             }
@@ -302,6 +316,41 @@ namespace FluentAI.Abstractions.Analysis
                 RuntimeIssueType.Environment => "Environment",
                 _ => "Runtime"
             };
+        }
+
+        private static string GetPreconditionFromProof(IssueProof proof)
+        {
+            return $"State when {proof.Trigger.ToLowerInvariant()}";
+        }
+
+        private static string GetScenarioFromRisk(EnvironmentRisk risk)
+        {
+            return $"When {risk.Component.ToLowerInvariant()} encounters runtime conditions";
+        }
+
+        private static string GetStateChangesFromRisk(EnvironmentRisk risk)
+        {
+            return $"Component state affected by {risk.Description.ToLowerInvariant()}";
+        }
+
+        private static string GetImplementationFromRisk(EnvironmentRisk risk)
+        {
+            return $"Apply mitigation strategies: {string.Join(", ", risk.Mitigation.RequiredChanges)}";
+        }
+
+        private static string GetImpactFromEdgeCase(EdgeCaseFailure edgeCase)
+        {
+            return $"System behavior differs from expected: {edgeCase.Expected} vs {edgeCase.Actual}";
+        }
+
+        private static string GetRequirementsFromEdgeCase(EdgeCaseFailure edgeCase)
+        {
+            return $"Handle edge case scenario: {edgeCase.Input}";
+        }
+
+        private static string GetTestsFromEdgeCase(EdgeCaseFailure edgeCase)
+        {
+            return $"Verify fix handles: {edgeCase.Input} correctly";
         }
 
         private static string MapRiskLikelihoodToSeverity(RiskLikelihood likelihood)

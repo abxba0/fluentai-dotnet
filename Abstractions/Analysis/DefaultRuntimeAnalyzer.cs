@@ -18,7 +18,9 @@ namespace FluentAI.Abstractions.Analysis
         private readonly List<RuntimeIssue> _runtimeIssues = new();
         private readonly List<EnvironmentRisk> _environmentRisks = new();
         private readonly List<EdgeCaseFailure> _edgeCaseFailures = new();
-        private int _issueIdCounter = 1;
+        private int _runtimeIssueIdCounter = 1;
+        private int _environmentRiskIdCounter = 1;
+        private int _edgeCaseIdCounter = 1;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultRuntimeAnalyzer"/> class.
@@ -82,6 +84,9 @@ namespace FluentAI.Abstractions.Analysis
             var allIssues = new List<RuntimeIssue>();
             var allRisks = new List<EnvironmentRisk>();
             var allEdgeCases = new List<EdgeCaseFailure>();
+            var globalRuntimeIssueId = 1;
+            var globalEnvironmentRiskId = 1;  
+            var globalEdgeCaseId = 1;
 
             foreach (var filePath in filePathList)
             {
@@ -91,9 +96,20 @@ namespace FluentAI.Abstractions.Analysis
                 try
                 {
                     var result = await AnalyzeFileAsync(filePath, cancellationToken);
-                    allIssues.AddRange(result.RuntimeIssues);
-                    allRisks.AddRange(result.EnvironmentRisks);
-                    allEdgeCases.AddRange(result.EdgeCaseFailures);
+                    
+                    // Re-assign IDs to ensure global uniqueness across files
+                    foreach (var issue in result.RuntimeIssues)
+                    {
+                        allIssues.Add(issue with { Id = globalRuntimeIssueId++ });
+                    }
+                    foreach (var risk in result.EnvironmentRisks)
+                    {
+                        allRisks.Add(risk with { Id = globalEnvironmentRiskId++ });
+                    }
+                    foreach (var edgeCase in result.EdgeCaseFailures)
+                    {
+                        allEdgeCases.Add(edgeCase with { Id = globalEdgeCaseId++ });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -166,7 +182,9 @@ namespace FluentAI.Abstractions.Analysis
             _runtimeIssues.Clear();
             _environmentRisks.Clear();
             _edgeCaseFailures.Clear();
-            _issueIdCounter = 1;
+            _runtimeIssueIdCounter = 1;
+            _environmentRiskIdCounter = 1;
+            _edgeCaseIdCounter = 1;
 
             // Step 1: Static Review (Baseline)
             await PerformStaticReviewAsync(sourceCode, fileName, cancellationToken);
@@ -297,16 +315,16 @@ namespace FluentAI.Abstractions.Analysis
                     fileName, lineNumber);
             }
 
-            // Check for unguarded async calls
-            if (line.Contains("async") && !line.Contains("await") && !line.Contains("Task"))
+            // Check for proper async method declarations (improved logic)
+            if (Regex.IsMatch(line, @"public\s+async\s+\w+\s+\w+\s*\(") && !line.Contains("CancellationToken"))
             {
                 AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
-                    "Async method without proper await usage",
-                    $"Async pattern detected at line {lineNumber}",
-                    "Method marked async but may not be properly awaited",
-                    "Fire-and-forget execution, potential deadlocks",
-                    "Ensure async methods are properly awaited or use Task.Run for fire-and-forget",
-                    "Test async behavior with concurrent operations",
+                    "Async method without cancellation token",
+                    $"Async method declaration detected at line {lineNumber}",
+                    "Method marked async but lacks cancellation support",
+                    "Long-running operations cannot be cancelled properly",
+                    "Add CancellationToken parameter to async methods",
+                    "Test cancellation behavior with long-running operations",
                     fileName, lineNumber);
             }
         }
@@ -396,7 +414,7 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for string concatenation in loops
-            if (Regex.IsMatch(sourceCode, @"(for|while|foreach).*\{[^}]*\w+\s*\+=\s*[""']"))
+            if (Regex.IsMatch(sourceCode, @"(for|while|foreach)[^{]*\{[^}]*\w+\s*\+=\s*\w+", RegexOptions.Singleline))
             {
                 AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
                     "String concatenation in loops",
@@ -408,17 +426,23 @@ namespace FluentAI.Abstractions.Analysis
                     fileName, null);
             }
 
-            // Check for large object allocations without disposal
-            if (Regex.IsMatch(sourceCode, @"new\s+(byte\[\]|MemoryStream|FileStream).*\d{4,}") && !sourceCode.Contains("using"))
-            {
-                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
-                    "Large object allocation without proper disposal",
-                    "Large object allocation detected without using statement",
-                    "Large objects (>85KB) created without proper lifecycle management",
-                    "Memory pressure and frequent garbage collection of LOH",
-                    "Use using statements for large object disposal or implement proper lifecycle management",
-                    "Monitor LOH fragmentation and GC pressure under load",
-                    fileName, null);
+            // Check for large object allocations without disposal  
+            var largeObjectMatches = Regex.Matches(sourceCode, @".*new\s+byte\s*\[\s*\d{4,}\s*\][^;]*;");
+            foreach (Match match in largeObjectMatches)
+            {  
+                var line = match.Value.Trim();
+                if (!line.Contains("using "))
+                {
+                    AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
+                        "Large object allocation without proper disposal",
+                        "Large object allocation detected without using statement",
+                        "Large objects (>85KB) created without proper lifecycle management",
+                        "Memory pressure and frequent garbage collection of LOH",
+                        "Use using statements for large object disposal or implement proper lifecycle management",
+                        "Monitor LOH fragmentation and GC pressure under load",
+                        fileName, null);
+                    break; // Only report once per file
+                }
             }
 
             // Check for potential memory leaks in event handlers
@@ -438,7 +462,7 @@ namespace FluentAI.Abstractions.Analysis
         private void SimulateConcurrencyIssues(string sourceCode, string? fileName)
         {
             // Check for static fields without thread safety
-            if (Regex.IsMatch(sourceCode, @"static\s+\w+\s+\w+\s*=") && !sourceCode.Contains("readonly") && !sourceCode.Contains("lock"))
+            if (Regex.IsMatch(sourceCode, @"static\s+\w+(?:<[^>]+>)?\s+\w+\s*=") && !sourceCode.Contains("readonly") && !sourceCode.Contains("lock"))
             {
                 AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
                     "Mutable static field without thread safety",
@@ -465,7 +489,7 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for collection modifications during iteration
-            if (Regex.IsMatch(sourceCode, @"foreach.*\{[^}]*(Add|Remove|Clear)\("))
+            if (Regex.IsMatch(sourceCode, @"foreach\s*\([^)]*\)[^{]*\{[^{}]*\.(?:Add|Remove|Clear)\s*\(", RegexOptions.Singleline))
             {
                 AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
                     "Collection modification during iteration",
@@ -552,17 +576,22 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for connection pool exhaustion
-            if (Regex.IsMatch(sourceCode, @"new\s+(HttpClient|SqlConnection)") && 
-                !sourceCode.Contains("using") && !sourceCode.Contains("static"))
+            var connectionMatches = Regex.Matches(sourceCode, @".*new\s+(HttpClient|SqlConnection)[^;]*;");
+            foreach (Match match in connectionMatches)
             {
-                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
-                    "Connection pool exhaustion risk",
-                    "Connection objects created without proper lifecycle management",
-                    "High concurrent requests creating new connections",
-                    "Connection pool exhaustion and timeout exceptions",
-                    "Use static HttpClient or proper connection pooling",
-                    "Load test to verify connection pool behavior",
-                    fileName, null);
+                var line = match.Value.Trim();
+                if (!line.Contains("using ") && !line.Contains("static "))
+                {
+                    AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
+                        "Connection pool exhaustion risk",
+                        "Connection objects created without proper lifecycle management",
+                        "High concurrent requests creating new connections",
+                        "Connection pool exhaustion and timeout exceptions",
+                        "Use static HttpClient or proper connection pooling",
+                        "Load test to verify connection pool behavior",
+                        fileName, null);
+                    break; // Only report once per file
+                }
             }
 
             // Check for unbounded cache growth
@@ -841,7 +870,9 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for missing null checks after external calls
-            if (Regex.IsMatch(sourceCode, @"(await\s+\w+\.\w+\().*\)\s*\.\w+") && !sourceCode.Contains("?"))
+            if ((Regex.IsMatch(sourceCode, @"(await\s+\w+\.\w+\().*\)\s*\.\w+") || 
+                 Regex.IsMatch(sourceCode, @"(JsonConvert\.DeserializeObject|JsonSerializer\.Deserialize).*\)\s*\.\w+")) && 
+                !sourceCode.Contains("?"))
             {
                 AddEdgeCaseFailure(
                     "null response from external service",
@@ -906,7 +937,7 @@ namespace FluentAI.Abstractions.Analysis
         {
             _runtimeIssues.Add(new RuntimeIssue
             {
-                Id = _issueIdCounter++,
+                Id = _runtimeIssueIdCounter++,
                 Type = type,
                 Severity = severity,
                 Description = description,
@@ -935,7 +966,7 @@ namespace FluentAI.Abstractions.Analysis
         {
             _environmentRisks.Add(new EnvironmentRisk
             {
-                Id = _issueIdCounter++,
+                Id = _environmentRiskIdCounter++,
                 Component = component,
                 Description = description,
                 Likelihood = likelihood,
@@ -956,7 +987,7 @@ namespace FluentAI.Abstractions.Analysis
         {
             _edgeCaseFailures.Add(new EdgeCaseFailure
             {
-                Id = _issueIdCounter++,
+                Id = _edgeCaseIdCounter++,
                 Input = input,
                 Expected = expected,
                 Actual = actual,
