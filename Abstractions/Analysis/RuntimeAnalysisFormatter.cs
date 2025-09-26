@@ -37,47 +37,43 @@ namespace FluentAI.Abstractions.Analysis
                     report.AppendLine($"TYPE: {MapIssueTypeToRequiredFormat(issue.Type)}");
                     report.AppendLine($"SEVERITY: {issue.Severity}");
                     report.AppendLine($"DESCRIPTION: {issue.Description}");
-                    report.AppendLine($"TRIGGER: {issue.Proof.Trigger}");
-                    report.AppendLine($"EXPECTED: {GetExpectedBehavior(issue)}");
-                    report.AppendLine($"ACTUAL (Simulated): {issue.Proof.Result}");
-                    report.AppendLine($"SOLUTION: {issue.Solution.Fix}");
-                    report.AppendLine($"VERIFICATION: {issue.Solution.Verification}");
+                    report.AppendLine("PROOF:");
+                    report.AppendLine($"  - Simulated Execution Step: {issue.Proof.SimulatedExecutionStep}");
+                    report.AppendLine($"  - Trigger: {issue.Proof.Trigger}");
+                    report.AppendLine($"  - Result: {issue.Proof.Result}");
+                    report.AppendLine("SOLUTION:");
+                    report.AppendLine($"  - Fix: {issue.Solution.Fix}");
+                    report.AppendLine($"  - Verification: {issue.Solution.Verification}");
                     report.AppendLine();
                 }
             }
 
-            // Environment Issues as Runtime format
+            // Environment Risks
             if (result.EnvironmentRisks.Any())
             {
                 foreach (var risk in result.EnvironmentRisks)
                 {
-                    report.AppendLine($"ISSUE #{risk.Id}:");
-                    report.AppendLine($"TYPE: Environment");
-                    report.AppendLine($"SEVERITY: {MapRiskLikelihoodToSeverity(risk.Likelihood)}");
+                    report.AppendLine($"RISK #{risk.Id}:");
+                    report.AppendLine($"COMPONENT: {risk.Component}");
                     report.AppendLine($"DESCRIPTION: {risk.Description}");
-                    report.AppendLine($"TRIGGER: {risk.Component} dependency failure or misconfiguration");
-                    report.AppendLine($"EXPECTED: Graceful handling of {risk.Component.ToLower()} unavailability");
-                    report.AppendLine($"ACTUAL (Simulated): Service failure, timeout, or exception");
-                    report.AppendLine($"SOLUTION: {string.Join("; ", risk.Mitigation.RequiredChanges)}");
-                    report.AppendLine($"VERIFICATION: {risk.Mitigation.Monitoring}");
+                    report.AppendLine($"LIKELIHOOD: {risk.Likelihood}");
+                    report.AppendLine("MITIGATION:");
+                    report.AppendLine($"  - Required Changes: {string.Join(", ", risk.Mitigation.RequiredChanges)}");
+                    report.AppendLine($"  - Monitoring: {risk.Mitigation.Monitoring}");
                     report.AppendLine();
                 }
             }
 
-            // Edge Case Issues as Runtime format  
+            // Edge Case Failures
             if (result.EdgeCaseFailures.Any())
             {
                 foreach (var edgeCase in result.EdgeCaseFailures)
                 {
-                    report.AppendLine($"ISSUE #{edgeCase.Id}:");
-                    report.AppendLine($"TYPE: Logic");
-                    report.AppendLine($"SEVERITY: Medium");
-                    report.AppendLine($"DESCRIPTION: Edge case handling failure for {edgeCase.Input}");
-                    report.AppendLine($"TRIGGER: {edgeCase.Input}");
+                    report.AppendLine($"CASE #{edgeCase.Id}:");
+                    report.AppendLine($"INPUT: {edgeCase.Input}");
                     report.AppendLine($"EXPECTED: {edgeCase.Expected}");
                     report.AppendLine($"ACTUAL (Simulated): {edgeCase.Actual}");
-                    report.AppendLine($"SOLUTION: {edgeCase.Fix}");
-                    report.AppendLine($"VERIFICATION: Test with edge case inputs including {edgeCase.Input}");
+                    report.AppendLine($"FIX: {edgeCase.Fix}");
                     report.AppendLine();
                 }
             }
