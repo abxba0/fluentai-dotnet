@@ -19,6 +19,11 @@ public class AiSdkOptions
     /// Gets or sets the multi-modal configuration options.
     /// </summary>
     public MultiModalOptions? MultiModal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the RAG (Retrieval Augmented Generation) configuration options.
+    /// </summary>
+    public RagOptions? Rag { get; set; }
 }
 
 /// <summary>
