@@ -116,7 +116,7 @@ public class DocumentProcessingOptions
     /// <summary>
     /// Gets or sets the supported document formats.
     /// </summary>
-    public IEnumerable<string> SupportedFormats { get; set; } = new[] { "txt", "pdf", "docx", "html", "md" };
+    public IEnumerable<string> SupportedFormats { get; set; } = new[] { "txt", "html", "md" };
 
     /// <summary>
     /// Gets or sets additional processing configuration.
