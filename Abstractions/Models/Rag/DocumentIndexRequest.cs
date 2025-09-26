@@ -33,7 +33,7 @@ public class DocumentIndexRequest
     /// <summary>
     /// Gets or sets embedding options for vector generation.
     /// </summary>
-    public EmbeddingOptions? EmbeddingOptions { get; set; }
+    public EmbeddingRequestOptions? EmbeddingOptions { get; set; }
 
     /// <summary>
     /// Gets or sets security settings for document access control.

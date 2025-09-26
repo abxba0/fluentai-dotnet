@@ -14,7 +14,7 @@ public interface IEmbeddingGenerator
     /// <param name="options">Optional embedding generation options.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>The embedding results with vectors and metadata.</returns>
-    Task<EmbeddingResult> GenerateEmbeddingsAsync(IEnumerable<string> texts, EmbeddingOptions? options = null, CancellationToken cancellationToken = default);
+    Task<EmbeddingResult> GenerateEmbeddingsAsync(IEnumerable<string> texts, EmbeddingRequestOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Generates an embedding for a single text.
@@ -23,7 +23,7 @@ public interface IEmbeddingGenerator
     /// <param name="options">Optional embedding generation options.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>The embedding result with vector and metadata.</returns>
-    Task<EmbeddingResult> GenerateEmbeddingAsync(string text, EmbeddingOptions? options = null, CancellationToken cancellationToken = default);
+    Task<EmbeddingResult> GenerateEmbeddingAsync(string text, EmbeddingRequestOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets information about the embedding model being used.

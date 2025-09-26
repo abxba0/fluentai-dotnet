@@ -269,9 +269,9 @@ public enum ChunkingStrategy
 }
 
 /// <summary>
-/// Configuration options for embedding generation.
+/// Options for embedding generation requests.
 /// </summary>
-public class EmbeddingOptions
+public class EmbeddingRequestOptions
 {
     /// <summary>
     /// Gets or sets the embedding model to use.
