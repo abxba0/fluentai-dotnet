@@ -289,4 +289,174 @@ namespace FluentAI.Extensions
             return this;
         }
     }
+
+    /// <summary>
+    /// Extension methods for configuring RAG services.
+    /// </summary>
+    public static class RagServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Adds RAG (Retrieval Augmented Generation) services to the dependency injection container.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>The RAG services builder for further configuration.</returns>
+        public static IRagServicesBuilder AddRagServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configuration);
+
+            // Configure RAG options
+            services.Configure<FluentAI.Configuration.RagOptions>(configuration.GetSection("AiSdk:Rag"));
+
+            // Register core RAG services
+            services.AddSingleton<FluentAI.Abstractions.IDocumentProcessor, FluentAI.Services.Rag.DefaultDocumentProcessor>();
+            services.AddSingleton<FluentAI.Abstractions.IRagService, FluentAI.Services.Rag.DefaultRagService>();
+
+            return new RagServicesBuilder(services, configuration);
+        }
+
+        /// <summary>
+        /// Adds RAG services with a configuration action.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">Configuration action for RAG options.</param>
+        /// <returns>The RAG services builder for further configuration.</returns>
+        public static IRagServicesBuilder AddRagServices(this IServiceCollection services, Action<FluentAI.Configuration.RagOptions> configure)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configure);
+
+            // Configure RAG options
+            services.Configure(configure);
+
+            // Register core RAG services
+            services.AddSingleton<FluentAI.Abstractions.IDocumentProcessor, FluentAI.Services.Rag.DefaultDocumentProcessor>();
+            services.AddSingleton<FluentAI.Abstractions.IRagService, FluentAI.Services.Rag.DefaultRagService>();
+
+            return new RagServicesBuilder(services);
+        }
+    }
+
+    /// <summary>
+    /// Builder interface for configuring RAG services.
+    /// </summary>
+    public interface IRagServicesBuilder
+    {
+        /// <summary>
+        /// Gets the service collection.
+        /// </summary>
+        IServiceCollection Services { get; }
+
+        /// <summary>
+        /// Adds the in-memory vector database provider.
+        /// </summary>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder AddInMemoryVectorDatabase();
+
+        /// <summary>
+        /// Adds the OpenAI embedding generator.
+        /// </summary>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder AddOpenAiEmbeddings();
+
+        /// <summary>
+        /// Adds RAG enhancement to existing chat models.
+        /// </summary>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder EnableRagEnhancement();
+
+        /// <summary>
+        /// Adds a custom vector database provider.
+        /// </summary>
+        /// <typeparam name="T">The vector database implementation type.</typeparam>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder AddVectorDatabase<T>() where T : class, FluentAI.Abstractions.IVectorDatabase;
+
+        /// <summary>
+        /// Adds a custom embedding generator.
+        /// </summary>
+        /// <typeparam name="T">The embedding generator implementation type.</typeparam>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder AddEmbeddingGenerator<T>() where T : class, FluentAI.Abstractions.IEmbeddingGenerator;
+
+        /// <summary>
+        /// Adds a custom document processor.
+        /// </summary>
+        /// <typeparam name="T">The document processor implementation type.</typeparam>
+        /// <returns>The builder for chaining.</returns>
+        IRagServicesBuilder AddDocumentProcessor<T>() where T : class, FluentAI.Abstractions.IDocumentProcessor;
+    }
+
+    /// <summary>
+    /// Implementation of the RAG services builder.
+    /// </summary>
+    internal class RagServicesBuilder : IRagServicesBuilder
+    {
+        private readonly IConfiguration? _configuration;
+
+        public IServiceCollection Services { get; }
+
+        public RagServicesBuilder(IServiceCollection services, IConfiguration? configuration = null)
+        {
+            Services = services ?? throw new ArgumentNullException(nameof(services));
+            _configuration = configuration;
+        }
+
+        public IRagServicesBuilder AddInMemoryVectorDatabase()
+        {
+            Services.AddSingleton<FluentAI.Abstractions.IVectorDatabase, FluentAI.Services.Rag.InMemoryVectorDatabase>();
+            return this;
+        }
+
+        public IRagServicesBuilder AddOpenAiEmbeddings()
+        {
+            // Configure embedding options from configuration if available
+            if (_configuration != null)
+            {
+                Services.Configure<FluentAI.Configuration.EmbeddingOptions>(_configuration.GetSection("AiSdk:Rag:Embedding"));
+            }
+
+            // Add HTTP client for OpenAI
+            Services.AddHttpClient<FluentAI.Services.Rag.OpenAiEmbeddingGenerator>();
+
+            // Register the embedding generator
+            Services.AddSingleton<FluentAI.Abstractions.IEmbeddingGenerator, FluentAI.Services.Rag.OpenAiEmbeddingGenerator>();
+
+            return this;
+        }
+
+        public IRagServicesBuilder EnableRagEnhancement()
+        {
+            // Replace the existing IChatModel registration with RAG-enhanced version
+            Services.AddSingleton<FluentAI.Abstractions.IChatModelWithRag>(serviceProvider =>
+            {
+                var baseChatModel = serviceProvider.GetRequiredService<FluentAI.Abstractions.IChatModel>();
+                var ragService = serviceProvider.GetRequiredService<FluentAI.Abstractions.IRagService>();
+                var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FluentAI.Services.Rag.RagEnhancedChatModel>>();
+                
+                return new FluentAI.Services.Rag.RagEnhancedChatModel(baseChatModel, ragService, logger);
+            });
+            
+            return this;
+        }
+
+        public IRagServicesBuilder AddVectorDatabase<T>() where T : class, FluentAI.Abstractions.IVectorDatabase
+        {
+            Services.AddSingleton<FluentAI.Abstractions.IVectorDatabase, T>();
+            return this;
+        }
+
+        public IRagServicesBuilder AddEmbeddingGenerator<T>() where T : class, FluentAI.Abstractions.IEmbeddingGenerator
+        {
+            Services.AddSingleton<FluentAI.Abstractions.IEmbeddingGenerator, T>();
+            return this;
+        }
+
+        public IRagServicesBuilder AddDocumentProcessor<T>() where T : class, FluentAI.Abstractions.IDocumentProcessor
+        {
+            Services.AddSingleton<FluentAI.Abstractions.IDocumentProcessor, T>();
+            return this;
+        }
+    }
 }
