@@ -10,5 +10,7 @@ public enum ChatRole
     /// <summary>Message from the user.</summary>
     User, 
     /// <summary>Message from the AI assistant.</summary>
-    Assistant 
+    Assistant,
+    /// <summary>Message containing tool/function call results.</summary>
+    Tool
 }
