@@ -227,5 +227,95 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             // Act & Assert
             Assert.Equal(6, result.TotalIssueCount);
         }
+
+        [Fact]
+        public async Task AnalyzeSourceAsync_WithEnhancedRuntimePatterns_DetectsAllIssues()
+        {
+            // Arrange
+            var sourceCode = @"
+                using System;
+                using System.Collections.Generic;
+                using System.Net.Http;
+                using System.Threading.Tasks;
+
+                public class ProblematicClass
+                {
+                    private static List<string> _cache = new List<string>();
+                    private HttpClient _client = new HttpClient();
+                    
+                    public async void ProcessData(string input)
+                    {
+                        var data = int.Parse(input);
+                        var result = 10 / data;
+                        
+                        foreach (var item in _cache)
+                        {
+                            _cache.Add(item + result);
+                        }
+                        
+                        var response = await _client.GetStringAsync(""https://api.example.com"");
+                        var parsed = JsonConvert.DeserializeObject<MyClass>(response).Value;
+                    }
+                    
+                    public string ConcatenateInLoop(List<string> items)
+                    {
+                        string result = """";
+                        for (int i = 0; i < items.Count; i++)
+                        {
+                            result += items[i];
+                        }
+                        return result;
+                    }
+                    
+                    public void ProcessLargeData()
+                    {
+                        byte[] largeArray = new byte[100000];
+                        // No using statement
+                    }
+                }";
+
+            // Act
+            var result = await _analyzer.AnalyzeSourceAsync(sourceCode, "ProblematicClass.cs");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(result.TotalIssueCount > 0, "Should detect multiple issues");
+            
+            // Should detect async void
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("Async void")), 
+                "Should detect async void methods");
+            
+            // Should detect int.Parse without TryParse
+            Assert.True(result.EdgeCaseFailures.Any(e => e.Input.Contains("Non-numeric")), 
+                "Should detect int.Parse edge cases");
+            
+            // Should detect division without zero check
+            Assert.True(result.EdgeCaseFailures.Any(e => e.Input.Contains("Zero divisor")), 
+                "Should detect division by zero edge cases");
+            
+            // Should detect collection modification during iteration
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("Collection modification")), 
+                "Should detect collection modification during iteration");
+                
+            // Should detect mutable static field
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("Mutable static field")), 
+                "Should detect mutable static fields");
+                
+            // Should detect string concatenation in loops
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("String concatenation in loops")), 
+                "Should detect string concatenation performance issues");
+                
+            // Should detect connection pool issues
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("Connection pool exhaustion")), 
+                "Should detect connection pool exhaustion risks");
+                
+            // Should detect large object allocation
+            Assert.True(result.RuntimeIssues.Any(i => i.Description.Contains("Large object allocation")), 
+                "Should detect large object allocation without disposal");
+                
+            // Should detect null handling after external calls
+            Assert.True(result.EdgeCaseFailures.Any(e => e.Input.Contains("null response")), 
+                "Should detect null handling after external service calls");
+        }
     }
 }

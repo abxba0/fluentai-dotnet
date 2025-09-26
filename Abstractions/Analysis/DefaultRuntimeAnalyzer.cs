@@ -234,6 +234,7 @@ namespace FluentAI.Abstractions.Analysis
                 SimulateMemoryUsage(sourceCode, fileName);
                 SimulateConcurrencyIssues(sourceCode, fileName);
                 SimulateExceptionHandling(sourceCode, fileName);
+                SimulateResourceExhaustion(sourceCode, fileName);
             }, cancellationToken);
         }
 
@@ -247,6 +248,8 @@ namespace FluentAI.Abstractions.Analysis
                 CheckExternalDependencies(sourceCode, fileName);
                 CheckConfigurationDependencies(sourceCode, fileName);
                 CheckPerformanceBottlenecks(sourceCode, fileName);
+                CheckNetworkDependencies(sourceCode, fileName);
+                CheckSystemResourceDependencies(sourceCode, fileName);
             }, cancellationToken);
         }
 
@@ -260,6 +263,8 @@ namespace FluentAI.Abstractions.Analysis
                 CheckBoundaryValues(sourceCode, fileName);
                 CheckInputValidation(sourceCode, fileName);
                 CheckDataTypeHandling(sourceCode, fileName);
+                CheckScalingLimits(sourceCode, fileName);
+                CheckPartialFailureScenarios(sourceCode, fileName);
             }, cancellationToken);
         }
 
@@ -402,6 +407,32 @@ namespace FluentAI.Abstractions.Analysis
                     "Performance test with large iteration counts",
                     fileName, null);
             }
+
+            // Check for large object allocations without disposal
+            if (Regex.IsMatch(sourceCode, @"new\s+(byte\[\]|MemoryStream|FileStream).*\d{4,}") && !sourceCode.Contains("using"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
+                    "Large object allocation without proper disposal",
+                    "Large object allocation detected without using statement",
+                    "Large objects (>85KB) created without proper lifecycle management",
+                    "Memory pressure and frequent garbage collection of LOH",
+                    "Use using statements for large object disposal or implement proper lifecycle management",
+                    "Monitor LOH fragmentation and GC pressure under load",
+                    fileName, null);
+            }
+
+            // Check for potential memory leaks in event handlers
+            if (Regex.IsMatch(sourceCode, @"\w+\.\w+\s*\+=\s*\w+") && sourceCode.Contains("event") && !sourceCode.Contains("-="))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
+                    "Event handler subscription without unsubscription",
+                    "Event handler registration detected without corresponding unsubscription",
+                    "Objects with event subscriptions that are not cleaned up",
+                    "Memory leaks due to retained object references",
+                    "Ensure event handlers are unsubscribed in disposal methods",
+                    "Test object lifecycle and memory usage patterns",
+                    fileName, null);
+            }
         }
 
         private void SimulateConcurrencyIssues(string sourceCode, string? fileName)
@@ -416,6 +447,46 @@ namespace FluentAI.Abstractions.Analysis
                     "Race conditions and data corruption",
                     "Make static fields readonly or add proper synchronization",
                     "Test with concurrent access scenarios",
+                    fileName, null);
+            }
+
+            // Check for potential deadlock scenarios (nested locks)
+            var lockMatches = Regex.Matches(sourceCode, @"lock\s*\([^)]+\)");
+            if (lockMatches.Count > 1)
+            {
+                AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
+                    "Potential deadlock with multiple locks",
+                    "Multiple lock statements detected in same method or class",
+                    "Two threads acquiring locks in different orders",
+                    "Deadlock causing application hang",
+                    "Establish consistent lock ordering or use lock-free patterns",
+                    "Test with concurrent threads under load to detect deadlocks",
+                    fileName, null);
+            }
+
+            // Check for collection modifications during iteration
+            if (Regex.IsMatch(sourceCode, @"foreach.*\{[^}]*(Add|Remove|Clear)\("))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
+                    "Collection modification during iteration",
+                    "Collection modification detected inside foreach loop",
+                    "Collection modified while being enumerated",
+                    "InvalidOperationException: collection was modified",
+                    "Use for loop with index or create a copy of collection before iteration",
+                    "Test concurrent modifications during enumeration",
+                    fileName, null);
+            }
+
+            // Check for unsafe lazy initialization patterns
+            if (Regex.IsMatch(sourceCode, @"if\s*\(\s*\w+\s*==\s*null\s*\)\s*\{[^}]*\w+\s*=\s*new"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.Medium,
+                    "Unsafe lazy initialization pattern",
+                    "Null-check initialization pattern detected without thread safety",
+                    "Multiple threads executing lazy initialization simultaneously",
+                    "Multiple instances created or race condition",
+                    "Use Lazy<T> or double-checked locking pattern with volatile",
+                    "Test lazy initialization under concurrent access",
                     fileName, null);
             }
         }
@@ -433,6 +504,78 @@ namespace FluentAI.Abstractions.Analysis
                     "Important exceptions may be silently swallowed",
                     "Catch specific exception types and handle appropriately",
                     "Test with various exception scenarios",
+                    fileName, null);
+            }
+
+            // Check for missing finally blocks with resource cleanup
+            if (sourceCode.Contains("try") && !sourceCode.Contains("finally") && 
+                Regex.IsMatch(sourceCode, @"new\s+\w*(Stream|Reader|Writer|Connection)"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
+                    "Resource allocation in try block without finally cleanup",
+                    "Resource allocation detected in try block without finally block",
+                    "Exception thrown after resource allocation but before disposal",
+                    "Resource leaks when exceptions occur",
+                    "Use using statements or ensure cleanup in finally blocks",
+                    "Test exception scenarios to verify resource disposal",
+                    fileName, null);
+            }
+
+            // Check for async void methods (except event handlers)
+            if (Regex.IsMatch(sourceCode, @"async\s+void\s+\w+") && !sourceCode.Contains("EventHandler"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
+                    "Async void method detected",
+                    "Async void method found outside of event handler context",
+                    "Exception thrown in async void method",
+                    "Unhandled exceptions crash the application",
+                    "Use async Task instead of async void",
+                    "Test exception handling in async methods",
+                    fileName, null);
+            }
+        }
+
+        private void SimulateResourceExhaustion(string sourceCode, string? fileName)
+        {
+            // Check for file handle exhaustion
+            if (Regex.IsMatch(sourceCode, @"(File\.Open|new\s+FileStream)") && 
+                !sourceCode.Contains("using") && !sourceCode.Contains("Dispose"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
+                    "File handle exhaustion risk",
+                    "File operations without proper disposal pattern",
+                    "High volume of file operations without handle cleanup",
+                    "File handle exhaustion causing IOException",
+                    "Use using statements for file operations",
+                    "Test with large number of concurrent file operations",
+                    fileName, null);
+            }
+
+            // Check for connection pool exhaustion
+            if (Regex.IsMatch(sourceCode, @"new\s+(HttpClient|SqlConnection)") && 
+                !sourceCode.Contains("using") && !sourceCode.Contains("static"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.High,
+                    "Connection pool exhaustion risk",
+                    "Connection objects created without proper lifecycle management",
+                    "High concurrent requests creating new connections",
+                    "Connection pool exhaustion and timeout exceptions",
+                    "Use static HttpClient or proper connection pooling",
+                    "Load test to verify connection pool behavior",
+                    fileName, null);
+            }
+
+            // Check for unbounded cache growth
+            if (sourceCode.Contains("Dictionary") && sourceCode.Contains("Cache") && 
+                !sourceCode.Contains("Remove") && !sourceCode.Contains("Evict"))
+            {
+                AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
+                    "Unbounded cache growth",
+                    "Cache implementation without eviction strategy",
+                    "Continuous cache additions without removal",
+                    "Memory exhaustion from unlimited cache growth",
+                    "Implement cache eviction policy (LRU, TTL, size limits)",
+                    "Monitor cache size and memory usage over time",
                     fileName, null);
             }
         }
@@ -489,6 +632,84 @@ namespace FluentAI.Abstractions.Analysis
                     new[] { "Use batch queries", "Implement query optimization", "Add query performance monitoring" },
                     "Monitor database query performance and execution counts");
             }
+
+            // Check for synchronous calls in async context
+            if (Regex.IsMatch(sourceCode, @"async.*\{[^}]*\.Result") || 
+                Regex.IsMatch(sourceCode, @"async.*\{[^}]*\.Wait\(\)"))
+            {
+                AddEnvironmentRisk("Async Performance",
+                    "Synchronous calls detected in async methods",
+                    RiskLikelihood.High,
+                    new[] { "Use async/await throughout call chain", "Avoid .Result and .Wait()", "Configure async properly" },
+                    "Monitor thread pool starvation and deadlock scenarios");
+            }
+        }
+
+        private void CheckNetworkDependencies(string sourceCode, string? fileName)
+        {
+            // Check for network timeouts
+            if (Regex.IsMatch(sourceCode, @"(HttpClient|WebRequest)") && !sourceCode.Contains("Timeout"))
+            {
+                AddEnvironmentRisk("Network Timeout",
+                    "Network operations without explicit timeout configuration",
+                    RiskLikelihood.Medium,
+                    new[] { "Set appropriate timeout values", "Implement retry policies", "Handle timeout exceptions" },
+                    "Monitor network request durations and timeout rates");
+            }
+
+            // Check for missing retry logic
+            if (Regex.IsMatch(sourceCode, @"(HttpClient|RestClient)") && !sourceCode.Contains("Retry") && !sourceCode.Contains("Polly"))
+            {
+                AddEnvironmentRisk("Network Reliability",
+                    "Network calls without retry mechanisms",
+                    RiskLikelihood.High,
+                    new[] { "Implement exponential backoff retry", "Use Polly for resilience", "Handle transient failures" },
+                    "Monitor network failure rates and retry attempts");
+            }
+
+            // Check for circuit breaker patterns
+            if (sourceCode.Contains("external") && sourceCode.Contains("api") && !sourceCode.Contains("CircuitBreaker"))
+            {
+                AddEnvironmentRisk("External Service Dependency",
+                    "External API calls without circuit breaker protection",
+                    RiskLikelihood.Medium,
+                    new[] { "Implement circuit breaker pattern", "Add fallback mechanisms", "Monitor service health" },
+                    "Track external service availability and response times");
+            }
+        }
+
+        private void CheckSystemResourceDependencies(string sourceCode, string? fileName)
+        {
+            // Check for disk space dependencies
+            if (Regex.IsMatch(sourceCode, @"File\.(Write|Create|Copy)") && !sourceCode.Contains("DriveInfo"))
+            {
+                AddEnvironmentRisk("Disk Space",
+                    "File operations without disk space validation",
+                    RiskLikelihood.Medium,
+                    new[] { "Check available disk space before operations", "Handle disk full exceptions", "Implement cleanup policies" },
+                    "Monitor disk usage and available space");
+            }
+
+            // Check for CPU-intensive operations
+            if (Regex.IsMatch(sourceCode, @"(Parallel\.|Task\.Run|Thread\.Start)") && 
+                !sourceCode.Contains("CancellationToken") && !sourceCode.Contains("MaxDegreeOfParallelism"))
+            {
+                AddEnvironmentRisk("CPU Resource",
+                    "CPU-intensive operations without resource limits",
+                    RiskLikelihood.Medium,
+                    new[] { "Set MaxDegreeOfParallelism", "Use CancellationToken", "Monitor CPU usage" },
+                    "Track CPU utilization and thread pool metrics");
+            }
+
+            // Check for environment variable dependencies
+            if (sourceCode.Contains("Environment.GetEnvironmentVariable") && !sourceCode.Contains("??"))
+            {
+                AddEnvironmentRisk("Environment Configuration",
+                    "Environment variables accessed without default values",
+                    RiskLikelihood.High,
+                    new[] { "Provide default values", "Validate environment setup", "Document required variables" },
+                    "Monitor missing environment variable errors");
+            }
         }
 
         #endregion
@@ -533,6 +754,100 @@ namespace FluentAI.Abstractions.Analysis
                     "TryParse returns false for invalid input",
                     "FormatException thrown for non-numeric strings",
                     "Use int.TryParse instead of int.Parse for user input",
+                    fileName);
+            }
+
+            // Check for DateTime parsing without culture
+            if (Regex.IsMatch(sourceCode, @"DateTime\.(Parse|ParseExact)\(") && !sourceCode.Contains("CultureInfo"))
+            {
+                AddEdgeCaseFailure(
+                    "Date string with different cultural format",
+                    "Parse handles cultural differences correctly",
+                    "FormatException due to cultural date format mismatch",
+                    "Use DateTime.TryParseExact with explicit culture",
+                    fileName);
+            }
+
+            // Check for division operations without zero check
+            if (Regex.IsMatch(sourceCode, @"\w+\s*/\s*\w+") && !sourceCode.Contains("!= 0") && !sourceCode.Contains("== 0"))
+            {
+                AddEdgeCaseFailure(
+                    "Zero divisor value",
+                    "DivideByZeroException or error handling",
+                    "Application crash with DivideByZeroException",
+                    "Add zero-check before division operations",
+                    fileName);
+            }
+        }
+
+        private void CheckScalingLimits(string sourceCode, string? fileName)
+        {
+            // Check for algorithms that don't scale well
+            if (Regex.IsMatch(sourceCode, @"for.*for.*for"))
+            {
+                AddEdgeCaseFailure(
+                    "Large dataset (O(n³) complexity)",
+                    "Reasonable performance with small datasets",
+                    "Performance degradation or timeout with large datasets",
+                    "Optimize algorithm or implement pagination for large datasets",
+                    fileName);
+            }
+
+            // Check for memory-intensive operations without limits
+            if (Regex.IsMatch(sourceCode, @"new\s+\w*\[\]\s*\{\}") && sourceCode.Contains("Add") && !sourceCode.Contains("Count"))
+            {
+                AddEdgeCaseFailure(
+                    "Very large collection size",
+                    "OutOfMemoryException or graceful handling",
+                    "Application crash due to memory exhaustion",
+                    "Implement size limits and validation for collections",
+                    fileName);
+            }
+
+            // Check for string operations on large data
+            if (Regex.IsMatch(sourceCode, @"string\.Join\(|string\.Concat\(") && !sourceCode.Contains("Length"))
+            {
+                AddEdgeCaseFailure(
+                    "Very large string collections",
+                    "Efficient string processing",
+                    "OutOfMemoryException or poor performance",
+                    "Add length validation and use StringBuilder for large operations",
+                    fileName);
+            }
+        }
+
+        private void CheckPartialFailureScenarios(string sourceCode, string? fileName)
+        {
+            // Check for batch operations without partial failure handling
+            if (Regex.IsMatch(sourceCode, @"foreach.*\{[^}]*(Insert|Update|Delete|Send)"))
+            {
+                AddEdgeCaseFailure(
+                    "Partial failure in batch operation",
+                    "All operations succeed or proper rollback",
+                    "Some operations succeed while others fail, leaving inconsistent state",
+                    "Implement transaction handling or compensating actions",
+                    fileName);
+            }
+
+            // Check for API response format assumptions
+            if (sourceCode.Contains("JsonConvert") && !sourceCode.Contains("try") && !sourceCode.Contains("JsonException"))
+            {
+                AddEdgeCaseFailure(
+                    "Unexpected JSON response format",
+                    "Graceful handling of format changes",
+                    "JsonException or NullReferenceException",
+                    "Add JSON validation and handle deserialization errors",
+                    fileName);
+            }
+
+            // Check for missing null checks after external calls
+            if (Regex.IsMatch(sourceCode, @"(await\s+\w+\.\w+\().*\)\s*\.\w+") && !sourceCode.Contains("?"))
+            {
+                AddEdgeCaseFailure(
+                    "null response from external service",
+                    "null check before accessing properties",
+                    "NullReferenceException when service returns null",
+                    "Add null checks after external service calls",
                     fileName);
             }
         }
