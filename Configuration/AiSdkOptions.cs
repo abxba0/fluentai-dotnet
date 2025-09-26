@@ -14,6 +14,11 @@ public class AiSdkOptions
     /// Gets or sets the failover configuration.
     /// </summary>
     public FailoverOptions? Failover { get; set; }
+
+    /// <summary>
+    /// Gets or sets the multi-modal configuration options.
+    /// </summary>
+    public MultiModalOptions? MultiModal { get; set; }
 }
 
 /// <summary>
