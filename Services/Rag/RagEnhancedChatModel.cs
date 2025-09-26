@@ -290,11 +290,10 @@ public class RagEnhancedChatModel : IChatModelWithRag
             var originalMessage = messageList[lastUserMessageIndex];
             var enhancedContent = $"{originalMessage.Content}\n\nRelevant context:\n{contextContent}";
             
-            messageList[lastUserMessageIndex] = new ChatMessage(originalMessage.Role, enhancedContent)
-            {
-                ToolCalls = originalMessage.ToolCalls,
-                ToolCallId = originalMessage.ToolCallId
-            };
+            var newMessage = new ChatMessage(originalMessage.Role, enhancedContent);
+            newMessage.ToolCalls = originalMessage.ToolCalls;
+            newMessage.ToolCallId = originalMessage.ToolCallId;
+            messageList[lastUserMessageIndex] = newMessage;
         }
 
         return messageList;
