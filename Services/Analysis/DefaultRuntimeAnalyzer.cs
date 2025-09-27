@@ -121,7 +121,20 @@ namespace FluentAI.Services.Analysis
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Async void methods can cause unhandled exceptions and should return Task instead",
                     Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
-                    SuggestedFix = "Change 'async void' to 'async Task'"
+                    SuggestedFix = "Change 'async void' to 'async Task'",
+                    FilePath = "analyzed file",
+                    LineNumber = GetLineNumber(sourceCode, match.Index),
+                    Proof = new IssueProof
+                    {
+                        SimulatedExecutionStep = "Exception handling in async void context",
+                        Trigger = "Unhandled exception in async void method",
+                        Result = "Application crash or silent failure"
+                    },
+                    Solution = new IssueSolution
+                    {
+                        Fix = "Change method signature from 'async void' to 'async Task'",
+                        Verification = "Ensure all callers await the method properly"
+                    }
                 });
             }
 
@@ -130,7 +143,7 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeMutableStaticFields(string sourceCode, List<RuntimeIssue> issues)
         {
-            var staticFieldPattern = @"private\s+static\s+(?!readonly)\w+\s+\w+\s*=\s*new\s+\w+";
+            var staticFieldPattern = @"private\s+static\s+(?!readonly).*List<.*>.*=.*new.*List";
             var matches = Regex.Matches(sourceCode, staticFieldPattern);
 
             foreach (Match match in matches)
@@ -142,7 +155,20 @@ namespace FluentAI.Services.Analysis
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Mutable static field can cause thread safety issues and memory leaks",
                     Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
-                    SuggestedFix = "Consider making the field readonly or using thread-safe collections"
+                    SuggestedFix = "Consider making the field readonly or using thread-safe collections",
+                    FilePath = "analyzed file",
+                    LineNumber = GetLineNumber(sourceCode, match.Index),
+                    Proof = new IssueProof
+                    {
+                        SimulatedExecutionStep = "Concurrent access to mutable static field",
+                        Trigger = "Multiple threads accessing static collection",
+                        Result = "Race conditions, data corruption, or memory leaks"
+                    },
+                    Solution = new IssueSolution
+                    {
+                        Fix = "Use ConcurrentBag<T> or make field readonly with proper initialization",
+                        Verification = "Test with concurrent access scenarios"
+                    }
                 });
             }
 
@@ -316,7 +342,11 @@ namespace FluentAI.Services.Analysis
                     Scenario = "int.Parse with invalid input",
                     ExpectedFailure = "FormatException",
                     Severity = EdgeCaseSeverity.Medium,
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}"
+                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Expected = "Graceful error handling with TryParse",
+                    Actual = "FormatException thrown",
+                    Fix = "Use int.TryParse instead of int.Parse",
+                    FilePath = "analyzed file"
                 });
             }
 

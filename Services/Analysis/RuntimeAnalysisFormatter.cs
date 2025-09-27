@@ -127,10 +127,9 @@ namespace FluentAI.Services.Analysis
             // Runtime Issues
             if (result.RuntimeIssues.Any())
             {
-                int issueNumber = 1;
                 foreach (var issue in result.RuntimeIssues)
                 {
-                    sb.AppendLine($"ISSUE #{issueNumber}:");
+                    sb.AppendLine($"ISSUE #{issue.Id}:");
                     sb.AppendLine($"  TYPE: {issue.Type}");
                     sb.AppendLine($"  SEVERITY: {issue.Severity}");
                     sb.AppendLine($"  DESCRIPTION: {issue.Description}");
@@ -153,7 +152,6 @@ namespace FluentAI.Services.Analysis
                     }
                     
                     sb.AppendLine();
-                    issueNumber++;
                 }
             }
             else
@@ -286,7 +284,6 @@ namespace FluentAI.Services.Analysis
             sb.AppendLine();
 
             // Runtime Issues Detail
-            int globalIssueNumber = 1;
             if (result.RuntimeIssues.Any())
             {
                 sb.AppendLine("RUNTIME ISSUES");
@@ -295,7 +292,7 @@ namespace FluentAI.Services.Analysis
                 
                 foreach (var issue in result.RuntimeIssues.OrderByDescending(i => i.Severity))
                 {
-                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
+                    sb.AppendLine($"ISSUE #{issue.Id}:");
                     sb.AppendLine($"TYPE: {issue.Type}");
                     sb.AppendLine($"SEVERITY: {issue.Severity}");
                     sb.AppendLine($"DESCRIPTION: {issue.Description}");
@@ -313,7 +310,6 @@ namespace FluentAI.Services.Analysis
                     }
                     
                     sb.AppendLine();
-                    globalIssueNumber++;
                 }
             }
 
@@ -329,7 +325,7 @@ namespace FluentAI.Services.Analysis
                 
                 foreach (var risk in result.EnvironmentRisks.OrderByDescending(r => r.Likelihood))
                 {
-                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
+                    sb.AppendLine($"ISSUE #{risk.Id}:");
                     sb.AppendLine($"TYPE: Environment");
                     sb.AppendLine($"SEVERITY: {risk.Likelihood}");
                     sb.AppendLine($"DESCRIPTION: {risk.Description}");
@@ -343,7 +339,6 @@ namespace FluentAI.Services.Analysis
                     }
                     
                     sb.AppendLine();
-                    globalIssueNumber++;
                 }
             }
 
@@ -359,10 +354,10 @@ namespace FluentAI.Services.Analysis
                 
                 foreach (var failure in result.EdgeCaseFailures.OrderByDescending(f => f.Severity))
                 {
-                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
-                    sb.AppendLine($"TYPE: EdgeCase");
-                    sb.AppendLine($"SEVERITY: {failure.Severity}");
-                    sb.AppendLine($"DESCRIPTION: {failure.Scenario}");
+                    sb.AppendLine($"ISSUE #{failure.Id}:");
+                    sb.AppendLine($"TYPE: Logic");
+                    sb.AppendLine($"SEVERITY: Medium");
+                    sb.AppendLine($"DESCRIPTION: Edge case handling failure for {failure.Input}");
                     sb.AppendLine($"TRIGGER: {failure.Input}");
                     sb.AppendLine($"EXPECTED: {failure.Expected}");
                     sb.AppendLine($"ACTUAL (Simulated): {failure.Actual}");
@@ -370,10 +365,10 @@ namespace FluentAI.Services.Analysis
                     if (!string.IsNullOrEmpty(failure.Fix))
                     {
                         sb.AppendLine($"SOLUTION: {failure.Fix}");
+                        sb.AppendLine($"VERIFICATION: Test with edge case inputs including {failure.Input}");
                     }
                     
                     sb.AppendLine();
-                    globalIssueNumber++;
                 }
             }
 
