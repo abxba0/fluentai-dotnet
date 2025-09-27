@@ -110,7 +110,7 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeAsyncVoidMethods(string sourceCode, List<RuntimeIssue> issues)
         {
-            var asyncVoidPattern = @"public\s+async\s+void\s+\w+\s*\(";
+            var asyncVoidPattern = @"(public|private|internal|protected)?\s*async\s+void\s+\w+\s*\(";
             var matches = Regex.Matches(sourceCode, asyncVoidPattern);
 
             foreach (Match match in matches)
@@ -205,7 +205,7 @@ namespace FluentAI.Services.Analysis
             var resourceMatches = Regex.Matches(sourceCode, resourcePattern);
             var usingMatches = Regex.Matches(sourceCode, usingPattern);
 
-            if (resourceMatches.Count > usingMatches.Count)
+            if (resourceMatches.Count > 0 && usingMatches.Count == 0)
             {
                 issues.Add(new RuntimeIssue
                 {
@@ -392,6 +392,14 @@ namespace FluentAI.Services.Analysis
             return lineNumber;
         }
 
+        private static int GetNextIssueId()
+        {
+            lock (_counterLock)
+            {
+                return _issueIdCounter++;
+            }
+        }
+
         private async Task AnalyzeEnvironmentRisks(string sourceCode, List<EnvironmentRisk> risks)
         {
             // Database dependency risks
@@ -455,14 +463,6 @@ namespace FluentAI.Services.Analysis
             }
 
             await Task.CompletedTask;
-        }
-
-        private static int GetNextIssueId()
-        {
-            lock (_counterLock)
-            {
-                return _issueIdCounter++;
-            }
         }
     }
 }

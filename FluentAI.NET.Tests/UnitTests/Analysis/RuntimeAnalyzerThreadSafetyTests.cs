@@ -130,5 +130,28 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             var stringConcatIssues = result.RuntimeIssues.Where(i => i.Type == RuntimeIssueType.StringConcatenation).ToList();
             Assert.True(stringConcatIssues.Count >= 3, $"Should detect string concatenation in all loop types. Found: {stringConcatIssues.Count}");
         }
+
+        [Fact]
+        public async Task AsyncVoidDetection_FindsAllAccessModifiers()
+        {
+            // Arrange
+            var analyzer = new DefaultRuntimeAnalyzer(_mockLogger.Object);
+            var codeWithVariousAsyncVoid = @"
+                public class TestClass
+                {
+                    public async void PublicAsyncVoid() { }
+                    private async void PrivateAsyncVoid() { }
+                    internal async void InternalAsyncVoid() { }
+                    protected async void ProtectedAsyncVoid() { }
+                    async void DefaultAsyncVoid() { }
+                }";
+
+            // Act
+            var result = await analyzer.AnalyzeSourceAsync(codeWithVariousAsyncVoid, "Test.cs");
+
+            // Assert
+            var asyncVoidIssues = result.RuntimeIssues.Where(i => i.Type == RuntimeIssueType.AsyncVoid).ToList();
+            Assert.True(asyncVoidIssues.Count >= 5, $"Should detect all async void methods regardless of access modifier. Found: {asyncVoidIssues.Count}");
+        }
     }
 }
