@@ -16,6 +16,7 @@ namespace FluentAI.Services.Analysis
     {
         private readonly ILogger<DefaultRuntimeAnalyzer> _logger;
         private static int _issueIdCounter = 1;
+        private static readonly object _counterLock = new object();
 
         public DefaultRuntimeAnalyzer(ILogger<DefaultRuntimeAnalyzer> logger)
         {
@@ -116,7 +117,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.AsyncVoid,
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Async void methods can cause unhandled exceptions and should return Task instead",
@@ -150,7 +151,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.MutableStaticField,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Mutable static field can cause thread safety issues and memory leaks",
@@ -177,14 +178,14 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeStringConcatenationInLoops(string sourceCode, List<RuntimeIssue> issues)
         {
-            var loopStringConcatPattern = @"for\s*\([^)]*\)\s*\{[^}]*\w+\s*\+=\s*[^}]*\}";
+            var loopStringConcatPattern = @"(for|while|foreach)\s*\([^)]*\)\s*\{[^}]*\w+\s*\+=\s*[^}]*\}";
             var matches = Regex.Matches(sourceCode, loopStringConcatPattern, RegexOptions.Singleline);
 
             foreach (Match match in matches)
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.StringConcatenation,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "String concatenation in loops can cause performance issues",
@@ -208,7 +209,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.ResourceManagement,
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Resource objects should be wrapped in using statements to ensure proper disposal",
@@ -222,14 +223,14 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeCollectionModification(string sourceCode, List<RuntimeIssue> issues)
         {
-            var modifyDuringIterationPattern = @"foreach\s*\([^)]*\)\s*\{[^}]*\.Add\([^}]*\}";
+            var modifyDuringIterationPattern = @"foreach\s*\([^)]*\)\s*\{[^}]*\.Add\([^)]*\)[^}]*\}";
             var matches = Regex.Matches(sourceCode, modifyDuringIterationPattern, RegexOptions.Singleline);
 
             foreach (Match match in matches)
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.CollectionModification,
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Collection modification during iteration can cause InvalidOperationException",
@@ -252,7 +253,7 @@ namespace FluentAI.Services.Analysis
                 {
                     issues.Add(new RuntimeIssue
                     {
-                        Id = _issueIdCounter++,
+                        Id = GetNextIssueId(),
                         Type = RuntimeIssueType.LargeObjectAllocation,
                         Severity = RuntimeIssueSeverity.Medium,
                         Description = "Large object allocation without disposal can impact garbage collection",
@@ -274,7 +275,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.ConnectionPoolExhaustion,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Connection pool exhaustion risk from multiple HttpClient instances",
@@ -295,7 +296,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.NullReference,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Null assignment without null checks can cause NullReferenceException",
@@ -316,7 +317,7 @@ namespace FluentAI.Services.Analysis
             {
                 edgeCases.Add(new EdgeCaseFailure
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Input = "Zero divisor",
                     Scenario = "Division operation without zero check",
                     ExpectedFailure = "DivideByZeroException",
@@ -337,7 +338,7 @@ namespace FluentAI.Services.Analysis
             {
                 edgeCases.Add(new EdgeCaseFailure
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Input = "Non-numeric string",
                     Scenario = "int.Parse with invalid input",
                     ExpectedFailure = "FormatException",
@@ -365,7 +366,7 @@ namespace FluentAI.Services.Analysis
             {
                 issues.Add(new RuntimeIssue
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = RuntimeIssueType.Threading,
                     Severity = RuntimeIssueSeverity.Low,
                     Description = "Async methods without cancellation support may not be responsive to cancellation requests",
@@ -382,7 +383,13 @@ namespace FluentAI.Services.Analysis
             if (position < 0 || position >= text.Length)
                 return 1;
 
-            return text.Take(position).Count(c => c == '\n') + 1;
+            int lineNumber = 1;
+            for (int i = 0; i < position && i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                    lineNumber++;
+            }
+            return lineNumber;
         }
 
         private async Task AnalyzeEnvironmentRisks(string sourceCode, List<EnvironmentRisk> risks)
@@ -393,7 +400,7 @@ namespace FluentAI.Services.Analysis
             {
                 risks.Add(new EnvironmentRisk
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = EnvironmentRiskType.Dependency,
                     Likelihood = RiskLikelihood.High,
                     Component = "Database",
@@ -413,7 +420,7 @@ namespace FluentAI.Services.Analysis
             {
                 risks.Add(new EnvironmentRisk
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = EnvironmentRiskType.Dependency,
                     Likelihood = RiskLikelihood.Medium,
                     Component = "External API",
@@ -433,7 +440,7 @@ namespace FluentAI.Services.Analysis
             {
                 risks.Add(new EnvironmentRisk
                 {
-                    Id = _issueIdCounter++,
+                    Id = GetNextIssueId(),
                     Type = EnvironmentRiskType.Configuration,
                     Likelihood = RiskLikelihood.Low,
                     Component = "Configuration",
@@ -448,6 +455,14 @@ namespace FluentAI.Services.Analysis
             }
 
             await Task.CompletedTask;
+        }
+
+        private static int GetNextIssueId()
+        {
+            lock (_counterLock)
+            {
+                return _issueIdCounter++;
+            }
         }
     }
 }
