@@ -1,4 +1,6 @@
+using System.Linq;
 using FluentAI.Abstractions.Analysis;
+using FluentAI.Services.Analysis;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -82,9 +84,9 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             // Output the analysis results for verification
             _output.WriteLine("=== RUNTIME ANALYSIS RESULTS ===");
             _output.WriteLine($"Total Issues: {result.TotalIssueCount}");
-            _output.WriteLine($"Runtime Issues: {result.RuntimeIssues.Count}");
-            _output.WriteLine($"Environment Risks: {result.EnvironmentRisks.Count}");
-            _output.WriteLine($"Edge Case Failures: {result.EdgeCaseFailures.Count}");
+            _output.WriteLine($"Runtime Issues: {result.RuntimeIssues.Count()}");
+            _output.WriteLine($"Environment Risks: {result.EnvironmentRisks.Count()}");
+            _output.WriteLine($"Edge Case Failures: {result.EdgeCaseFailures.Count()}");
             _output.WriteLine($"Has Critical Issues: {result.HasCriticalIssues}");
             _output.WriteLine("");
 

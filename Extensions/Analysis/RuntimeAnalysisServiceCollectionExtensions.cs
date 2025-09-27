@@ -1,4 +1,5 @@
 using FluentAI.Abstractions.Analysis;
+using FluentAI.Services.Analysis;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FluentAI.Extensions.Analysis

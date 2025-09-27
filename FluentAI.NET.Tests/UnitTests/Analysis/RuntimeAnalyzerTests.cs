@@ -1,4 +1,6 @@
+using System.Linq;
 using FluentAI.Abstractions.Analysis;
+using FluentAI.Services.Analysis;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -171,7 +173,7 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
 
                 // Assert
                 Assert.NotNull(result);
-                Assert.Equal(2, result.Metadata.AnalyzedFiles.Count);
+                Assert.Equal(2, result.Metadata.AnalyzedFiles.Count());
             }
             finally
             {
