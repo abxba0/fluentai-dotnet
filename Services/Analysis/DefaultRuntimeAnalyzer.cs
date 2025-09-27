@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using FluentAI.Abstractions.Analysis;
@@ -17,7 +20,8 @@ namespace FluentAI.Services.Analysis
         private readonly ILogger<DefaultRuntimeAnalyzer> _logger;
         private static int _issueIdCounter = 1;
         private static readonly object _counterLock = new object();
-        private Dictionary<string, int[]>? _lineIndexCache;
+        private static readonly ConcurrentDictionary<string, int[]> _lineIndexCache = new ConcurrentDictionary<string, int[]>();
+        private string? _currentFileHash;
 
         public DefaultRuntimeAnalyzer(ILogger<DefaultRuntimeAnalyzer> logger)
         {
@@ -35,7 +39,8 @@ namespace FluentAI.Services.Analysis
             _logger.LogDebug("Analyzing source code for file: {FileName}", fileName);
 
             // Cache line indices for performance optimization
-            _lineIndexCache = BuildLineIndexCache(sourceCode);
+            _currentFileHash = ComputeFileHash(sourceCode);
+            _lineIndexCache.GetOrAdd(_currentFileHash, _ => BuildLineIndices(sourceCode));
 
             var startTime = DateTime.UtcNow;
             var issues = new List<RuntimeIssue>();
@@ -115,7 +120,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeAsyncVoidMethods(string sourceCode, List<RuntimeIssue> issues)
         {
             var asyncVoidPattern = @"(public|private|internal|protected)?\s*async\s+void\s+\w+\s*\(";
-            var matches = Regex.Matches(sourceCode, asyncVoidPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+            var matches = SafeRegexMatches(sourceCode, asyncVoidPattern);
 
             foreach (Match match in matches)
             {
@@ -149,7 +154,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeMutableStaticFields(string sourceCode, List<RuntimeIssue> issues)
         {
             var staticFieldPattern = @"private\s+static\s+(?!readonly).*List<.*>.*=.*new.*List";
-            var matches = Regex.Matches(sourceCode, staticFieldPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+            var matches = SafeRegexMatches(sourceCode, staticFieldPattern);
 
             foreach (Match match in matches)
             {
@@ -401,15 +406,24 @@ namespace FluentAI.Services.Analysis
             if (position < 0 || position >= text.Length)
                 return 1;
 
-            if (_lineIndexCache == null || !_lineIndexCache.TryGetValue(text, out var lineIndices))
-                return GetLineNumber(text, position); // Fallback to original method
-
-            // Binary search to find line number
-            int line = Array.BinarySearch(lineIndices, position);
-            return line >= 0 ? line + 1 : ~line;
+            if (_currentFileHash != null && _lineIndexCache.TryGetValue(_currentFileHash, out var lineIndices))
+            {
+                // Binary search to find line number
+                int line = Array.BinarySearch(lineIndices, position);
+                return line >= 0 ? line + 1 : ~line;
+            }
+            
+            return GetLineNumber(text, position); // Fallback
         }
 
-        private Dictionary<string, int[]> BuildLineIndexCache(string text)
+        private string ComputeFileHash(string text)
+        {
+            using var sha256 = SHA256.Create();
+            var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+            return Convert.ToBase64String(hashBytes)[..12]; // Use first 12 chars for cache key
+        }
+
+        private int[] BuildLineIndices(string text)
         {
             var lineIndices = new List<int> { 0 }; // Start of first line
             for (int i = 0; i < text.Length; i++)
@@ -417,7 +431,35 @@ namespace FluentAI.Services.Analysis
                 if (text[i] == '\n')
                     lineIndices.Add(i + 1);
             }
-            return new Dictionary<string, int[]> { { text, lineIndices.ToArray() } };
+            return lineIndices.ToArray();
+        }
+
+        private MatchCollection SafeRegexMatches(string input, string pattern, RegexOptions options = RegexOptions.None, TimeSpan? timeout = null)
+        {
+            try
+            {
+                var actualTimeout = timeout ?? TimeSpan.FromSeconds(1);
+                return Regex.Matches(input, pattern, options | RegexOptions.Compiled, actualTimeout);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                _logger.LogWarning("Regex pattern timed out: {Pattern}. Timeout: {Timeout}ms", pattern, timeout?.TotalMilliseconds ?? 1000);
+                return Regex.Matches("", "(?!)"); // Return empty match collection using non-matching pattern
+            }
+        }
+
+        private bool SafeRegexIsMatch(string input, string pattern, RegexOptions options = RegexOptions.None, TimeSpan? timeout = null)
+        {
+            try
+            {
+                var actualTimeout = timeout ?? TimeSpan.FromSeconds(1);
+                return Regex.IsMatch(input, pattern, options | RegexOptions.Compiled, actualTimeout);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                _logger.LogWarning("Regex pattern timed out: {Pattern}. Timeout: {Timeout}ms", pattern, timeout?.TotalMilliseconds ?? 1000);
+                return false;
+            }
         }
 
         private static int GetNextIssueId()
