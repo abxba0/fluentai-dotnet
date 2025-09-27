@@ -859,7 +859,7 @@ namespace FluentAI.Abstractions.Analysis
         private void CheckErrorPropagationPaths(string sourceCode, string? fileName)
         {
             // Check for unhandled exceptions in async methods
-            if (Regex.IsMatch(sourceCode, @"async\s+Task\s+\w+") && !sourceCode.Contains("try"))
+            if (Regex.IsMatch(sourceCode, @"async\s+Task\s+\w+.*?\{[^}]*\}", RegexOptions.Singleline) && !Regex.IsMatch(sourceCode, @"async\s+Task\s+\w+.*?\{[^}]*try[^}]*\}", RegexOptions.Singleline))
             {
                 AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
                     "Unhandled exceptions in async method",
