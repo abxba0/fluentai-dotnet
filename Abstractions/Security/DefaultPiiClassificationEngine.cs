@@ -10,7 +10,7 @@ namespace FluentAI.Abstractions.Security;
 public class DefaultPiiClassificationEngine : IPiiClassificationEngine
 {
     private readonly ILogger<DefaultPiiClassificationEngine> _logger;
-    private readonly IOptions<PiiDetectionOptions> _options;
+    private readonly IOptions<FluentAI.Configuration.PiiDetectionOptions> _options;
 
     // Compliance framework requirements
     private static readonly Dictionary<string, ComplianceFramework> ComplianceFrameworks = new()
@@ -54,7 +54,7 @@ public class DefaultPiiClassificationEngine : IPiiClassificationEngine
 
     public DefaultPiiClassificationEngine(
         ILogger<DefaultPiiClassificationEngine> logger,
-        IOptions<PiiDetectionOptions> options)
+        IOptions<FluentAI.Configuration.PiiDetectionOptions> options)
     {
         _logger = logger;
         _options = options;

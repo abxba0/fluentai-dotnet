@@ -147,6 +147,44 @@ namespace FluentAI.Extensions
             services.AddSingleton<GoogleGeminiChatModel>();
             return services;
         }
+
+        /// <summary>
+        /// Adds PII detection services to the dependency injection container.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configuration">The configuration instance.</param>
+        /// <returns>The service collection for chaining.</returns>
+        public static IServiceCollection AddPiiDetection(this IServiceCollection services, IConfiguration configuration)
+        {
+            // Configure PII detection options
+            services.Configure<Configuration.PiiDetectionOptions>(configuration.GetSection("AiSdk:Security:PiiDetection"));
+            
+            // Register core PII detection services
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiPatternRegistry, FluentAI.Abstractions.Security.InMemoryPiiPatternRegistry>();
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiClassificationEngine, FluentAI.Abstractions.Security.DefaultPiiClassificationEngine>();
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiDetectionService, FluentAI.Abstractions.Security.HybridPiiDetectionService>();
+            
+            return services;
+        }
+
+        /// <summary>
+        /// Adds PII detection services with custom configuration to the dependency injection container.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">Configuration action for PII detection options.</param>
+        /// <returns>The service collection for chaining.</returns>
+        public static IServiceCollection AddPiiDetection(this IServiceCollection services, Action<Configuration.PiiDetectionOptions> configure)
+        {
+            // Configure PII detection options with action
+            services.Configure(configure);
+            
+            // Register core PII detection services
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiPatternRegistry, FluentAI.Abstractions.Security.InMemoryPiiPatternRegistry>();
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiClassificationEngine, FluentAI.Abstractions.Security.DefaultPiiClassificationEngine>();
+            services.AddSingleton<FluentAI.Abstractions.Security.IPiiDetectionService, FluentAI.Abstractions.Security.HybridPiiDetectionService>();
+            
+            return services;
+        }
     }
 
     /// <summary>
