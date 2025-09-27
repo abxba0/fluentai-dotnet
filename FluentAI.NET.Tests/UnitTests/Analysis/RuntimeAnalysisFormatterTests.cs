@@ -1,4 +1,5 @@
 using FluentAI.Abstractions.Analysis;
+using FluentAI.Services.Analysis;
 using Xunit;
 
 namespace FluentAI.NET.Tests.UnitTests.Analysis
