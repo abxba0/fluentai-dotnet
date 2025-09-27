@@ -41,6 +41,8 @@ public class SecurityDemoService
         Console.WriteLine();
         await RunRiskAssessmentDemo(sanitizer);
         Console.WriteLine();
+        await RunPiiDetectionDemo();
+        Console.WriteLine();
         await RunSecurityBestPractices();
     }
 
@@ -177,6 +179,147 @@ public class SecurityDemoService
         Console.WriteLine("   • Monitor for prompt injection attempts");
         Console.WriteLine("   • Track usage patterns for anomaly detection");
         
+        await Task.CompletedTask;
+    }
+
+    private async Task RunPiiDetectionDemo()
+    {
+        Console.WriteLine("🔍 PII Detection Demo:");
+        Console.WriteLine("   ─────────────────────");
+        Console.WriteLine();
+
+        // Get PII detection service if available
+        var piiDetectionService = _serviceProvider.GetService<IPiiDetectionService>();
+        
+        if (piiDetectionService == null)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("⚠️ PII Detection service not configured. Showing conceptual demo...");
+            Console.ResetColor();
+            await RunConceptualPiiDemo();
+            return;
+        }
+
+        // Test samples with various PII types
+        var testSamples = new[]
+        {
+            "My credit card number is 4532-0151-1283-0366 for payment processing.",
+            "Please contact John Doe at john.doe@company.com or call (555) 123-4567.",
+            "SSN for verification: 123-45-6789 and driver license: CA1234567.",
+            "IP address 192.168.1.100 and MAC address 00:14:22:01:23:45 for network setup.",
+            "This is clean content with no sensitive information."
+        };
+
+        foreach (var sample in testSamples)
+        {
+            Console.WriteLine($"Input: \"{sample}\"");
+            
+            try
+            {
+                var detectionResult = await piiDetectionService.ScanAsync(sample);
+                
+                if (detectionResult.HasPii)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ⚠️ PII Detected: {detectionResult.Detections.Count} instance(s)");
+                    Console.ResetColor();
+                    
+                    foreach (var detection in detectionResult.Detections)
+                    {
+                        Console.WriteLine($"    • {detection.Type}: \"{detection.DetectedContent}\" " +
+                                        $"(Confidence: {detection.Confidence:F2}, Action: {detection.Action})");
+                    }
+                    
+                    // Show redacted version
+                    var redactedContent = await piiDetectionService.RedactAsync(sample, detectionResult);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  Redacted: \"{redactedContent}\"");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✅ No PII detected - content is safe");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ❌ Error during PII detection: {ex.Message}");
+                Console.ResetColor();
+            }
+            
+            Console.WriteLine();
+        }
+
+        // Demonstrate compliance checking
+        var classificationEngine = _serviceProvider.GetService<IPiiClassificationEngine>();
+        if (classificationEngine != null)
+        {
+            Console.WriteLine("📋 Compliance Assessment:");
+            Console.WriteLine("   ──────────────────────");
+            
+            var allResults = new List<PiiDetectionResult>();
+            foreach (var sample in testSamples)
+            {
+                var result = await piiDetectionService.ScanAsync(sample);
+                if (result.HasPii) allResults.Add(result);
+            }
+            
+            if (allResults.Any())
+            {
+                var riskAssessment = await classificationEngine.AssessRiskAsync(allResults);
+                Console.WriteLine($"Overall Risk Score: {riskAssessment.OverallRiskScore:F2}");
+                Console.WriteLine($"Highest Risk Level: {riskAssessment.HighestRiskLevel}");
+                
+                if (riskAssessment.MitigationRecommendations.Any())
+                {
+                    Console.WriteLine("Recommendations:");
+                    foreach (var recommendation in riskAssessment.MitigationRecommendations)
+                    {
+                        Console.WriteLine($"  • {recommendation}");
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task RunConceptualPiiDemo()
+    {
+        Console.WriteLine("🔍 PII Detection Features Overview:");
+        Console.WriteLine("   ────────────────────────────────");
+        Console.WriteLine();
+
+        Console.WriteLine("FluentAI.NET includes enterprise-grade PII detection:");
+        Console.WriteLine();
+
+        Console.WriteLine("🎯 Detection Types:");
+        Console.WriteLine("   • Credit Cards (with Luhn validation)");
+        Console.WriteLine("   • Social Security Numbers");
+        Console.WriteLine("   • Email addresses");
+        Console.WriteLine("   • Phone numbers");
+        Console.WriteLine("   • IP addresses and MAC addresses");
+        Console.WriteLine("   • Custom patterns via regex");
+        Console.WriteLine();
+
+        Console.WriteLine("⚡ Actions:");
+        Console.WriteLine("   • Redact - Replace with [REDACTED]");
+        Console.WriteLine("   • Mask - Partially hide (show last 4 digits)");
+        Console.WriteLine("   • Tokenize - Replace with reversible tokens");
+        Console.WriteLine("   • Block - Reject entire content");
+        Console.WriteLine("   • Log - Record detection events");
+        Console.WriteLine();
+
+        Console.WriteLine("📜 Compliance:");
+        Console.WriteLine("   • GDPR compliance validation");
+        Console.WriteLine("   • HIPAA requirements checking");
+        Console.WriteLine("   • CCPA data protection");
+        Console.WriteLine("   • PCI-DSS payment card security");
+        Console.WriteLine();
+
+        Console.WriteLine("💡 To see PII detection in action, add services.AddPiiDetection() to your configuration!");
+
         await Task.CompletedTask;
     }
 
