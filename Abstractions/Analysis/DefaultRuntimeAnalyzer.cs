@@ -396,7 +396,7 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for string concatenation in loops
-            if (Regex.IsMatch(sourceCode, @"(for|while|foreach).*\{[^}]*\w+\s*\+=\s*[""']"))
+            if (Regex.IsMatch(sourceCode, @"(for|while|foreach)[\s\S]*?\{[\s\S]*?\w+\s*\+=\s*[""'][\s\S]*?\}", RegexOptions.Multiline))
             {
                 AddRuntimeIssue(RuntimeIssueType.Performance, RuntimeIssueSeverity.Medium,
                     "String concatenation in loops",
@@ -465,7 +465,7 @@ namespace FluentAI.Abstractions.Analysis
             }
 
             // Check for collection modifications during iteration
-            if (Regex.IsMatch(sourceCode, @"foreach.*\{[^}]*(Add|Remove|Clear)\("))
+            if (Regex.IsMatch(sourceCode, @"foreach.*?\{.*?(Add|Remove|Clear)\(.*?\}", RegexOptions.Singleline))
             {
                 AddRuntimeIssue(RuntimeIssueType.Crash, RuntimeIssueSeverity.High,
                     "Collection modification during iteration",

@@ -37,6 +37,9 @@ namespace FluentAI.Abstractions.Analysis
                     report.AppendLine($"TYPE: {MapIssueTypeToRequiredFormat(issue.Type)}");
                     report.AppendLine($"SEVERITY: {issue.Severity}");
                     report.AppendLine($"DESCRIPTION: {issue.Description}");
+                    report.AppendLine($"TRIGGER: {issue.Proof.Trigger}");
+                    report.AppendLine($"EXPECTED: {GetExpectedBehavior(issue)}");
+                    report.AppendLine($"ACTUAL (Simulated): {issue.Proof.Result}");
                     report.AppendLine("PROOF:");
                     report.AppendLine($"  - Simulated Execution Step: {issue.Proof.SimulatedExecutionStep}");
                     report.AppendLine($"  - Trigger: {issue.Proof.Trigger}");
