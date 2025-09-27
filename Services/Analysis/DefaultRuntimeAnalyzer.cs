@@ -49,6 +49,9 @@ namespace FluentAI.Services.Analysis
             await AnalyzeDivisionByZero(sourceCode, edgeCases);
             await AnalyzeIntParseEdgeCases(sourceCode, edgeCases);
             await AnalyzeAsyncCancellation(sourceCode, issues);
+            
+            // Analyze for environment risks
+            await AnalyzeEnvironmentRisks(sourceCode, risks);
 
             var endTime = DateTime.UtcNow;
 
@@ -350,6 +353,71 @@ namespace FluentAI.Services.Analysis
                 return 1;
 
             return text.Take(position).Count(c => c == '\n') + 1;
+        }
+
+        private async Task AnalyzeEnvironmentRisks(string sourceCode, List<EnvironmentRisk> risks)
+        {
+            // Database dependency risks
+            var databasePattern = @"ExecuteQuery\s*\(\s*[""'][^""']*[""']\s*\)|SELECT\s+.*\s+FROM|SqlConnection|SqlCommand";
+            if (Regex.IsMatch(sourceCode, databasePattern, RegexOptions.IgnoreCase))
+            {
+                risks.Add(new EnvironmentRisk
+                {
+                    Id = _issueIdCounter++,
+                    Type = EnvironmentRiskType.Dependency,
+                    Likelihood = RiskLikelihood.High,
+                    Component = "Database",
+                    Description = "Database dependency failure can cause service outages",
+                    Impact = "Service downtime, data inconsistency, transaction failures",
+                    Mitigation = new RiskMitigation
+                    {
+                        RequiredChanges = new[] { "Implement circuit breaker pattern", "Add database health checks", "Implement retry logic with exponential backoff" },
+                        Monitoring = "Monitor database connection pool, query response times, and error rates"
+                    }
+                });
+            }
+
+            // External API risks
+            var apiPattern = @"HttpClient|GetStringAsync|PostAsync|PutAsync|DeleteAsync|RestClient";
+            if (Regex.IsMatch(sourceCode, apiPattern, RegexOptions.IgnoreCase))
+            {
+                risks.Add(new EnvironmentRisk
+                {
+                    Id = _issueIdCounter++,
+                    Type = EnvironmentRiskType.Dependency,
+                    Likelihood = RiskLikelihood.Medium,
+                    Component = "External API",
+                    Description = "External API unavailability can impact service functionality",
+                    Impact = "Feature degradation, timeout exceptions, cascade failures",
+                    Mitigation = new RiskMitigation
+                    {
+                        RequiredChanges = new[] { "Implement timeout policies", "Add fallback mechanisms", "Cache responses when appropriate" },
+                        Monitoring = "Track API response times, success rates, and availability"
+                    }
+                });
+            }
+
+            // Configuration risks
+            var configPattern = @"ConfigurationManager|IConfiguration|appSettings|connectionString";
+            if (Regex.IsMatch(sourceCode, configPattern, RegexOptions.IgnoreCase))
+            {
+                risks.Add(new EnvironmentRisk
+                {
+                    Id = _issueIdCounter++,
+                    Type = EnvironmentRiskType.Configuration,
+                    Likelihood = RiskLikelihood.Low,
+                    Component = "Configuration",
+                    Description = "Missing or invalid configuration can cause runtime failures",
+                    Impact = "Service startup failures, incorrect behavior, security vulnerabilities",
+                    Mitigation = new RiskMitigation
+                    {
+                        RequiredChanges = new[] { "Validate configuration on startup", "Provide default values", "Implement configuration monitoring" },
+                        Monitoring = "Log configuration validation results and changes"
+                    }
+                });
+            }
+
+            await Task.CompletedTask;
         }
     }
 }

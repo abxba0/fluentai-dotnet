@@ -38,6 +38,7 @@ namespace FluentAI.Services.Analysis
             sb.AppendLine();
             sb.AppendLine($"📊 Analysis Summary:");
             sb.AppendLine($"   • Total Issues: {result.TotalIssueCount}");
+            sb.AppendLine($"   • Runtime Issues: {result.RuntimeIssues.Count()}");
             
             var criticalCount = result.RuntimeIssues.Count(i => i.Severity == RuntimeIssueSeverity.Critical);
             var highCount = result.RuntimeIssues.Count(i => i.Severity == RuntimeIssueSeverity.High);
@@ -50,6 +51,19 @@ namespace FluentAI.Services.Analysis
             sb.AppendLine($"   • Low: {lowCount}");
             
             sb.AppendLine($"   • Environment Risks: {result.EnvironmentRisks.Count()}");
+            
+            // Add risk likelihood breakdown
+            var highLikelihoodRisks = result.EnvironmentRisks.Count(r => r.Likelihood == RiskLikelihood.High);
+            var mediumLikelihoodRisks = result.EnvironmentRisks.Count(r => r.Likelihood == RiskLikelihood.Medium);
+            var lowLikelihoodRisks = result.EnvironmentRisks.Count(r => r.Likelihood == RiskLikelihood.Low);
+            
+            if (highLikelihoodRisks > 0)
+                sb.AppendLine($"   • High Likelihood: {highLikelihoodRisks}");
+            if (mediumLikelihoodRisks > 0)
+                sb.AppendLine($"   • Medium Likelihood: {mediumLikelihoodRisks}");
+            if (lowLikelihoodRisks > 0)
+                sb.AppendLine($"   • Low Likelihood: {lowLikelihoodRisks}");
+                
             sb.AppendLine($"   • Edge Case Failures: {result.EdgeCaseFailures.Count()}");
 
             if (result.HasCriticalIssues)
@@ -92,20 +106,54 @@ namespace FluentAI.Services.Analysis
             
             sb.AppendLine($"TOTAL_ISSUES: {result.TotalIssueCount}");
             sb.AppendLine($"HAS_CRITICAL_ISSUES: {result.HasCriticalIssues.ToString().ToLower()}");
+            
+            // Add summary statistics
+            var criticalCount = result.RuntimeIssues.Count(i => i.Severity == RuntimeIssueSeverity.Critical);
+            var highCount = result.RuntimeIssues.Count(i => i.Severity == RuntimeIssueSeverity.High);
+            var highRiskEnvironments = result.EnvironmentRisks.Count(r => r.Likelihood == RiskLikelihood.High);
+            var edgeCaseCount = result.EdgeCaseFailures.Count();
+            
+            if (criticalCount > 0)
+                sb.AppendLine($"CRITICAL_ISSUES: {criticalCount}");
+            if (highCount > 0)
+                sb.AppendLine($"HIGH_SEVERITY_ISSUES: {highCount}");
+            if (highRiskEnvironments > 0)
+                sb.AppendLine($"HIGH_RISK_ENVIRONMENTS: {highRiskEnvironments}");
+            if (edgeCaseCount > 0)
+                sb.AppendLine($"EDGE_CASE_FAILURES: {edgeCaseCount}");
+                
             sb.AppendLine();
 
             // Runtime Issues
             if (result.RuntimeIssues.Any())
             {
-                sb.AppendLine("RUNTIME_ISSUES:");
+                int issueNumber = 1;
                 foreach (var issue in result.RuntimeIssues)
                 {
-                    sb.AppendLine($"  - id: {issue.Id}");
-                    sb.AppendLine($"    type: {issue.Type}");
-                    sb.AppendLine($"    severity: {issue.Severity}");
-                    sb.AppendLine($"    description: \"{issue.Description}\"");
-                    sb.AppendLine($"    location: \"{issue.Location}\"");
-                    sb.AppendLine($"    suggested_fix: \"{issue.SuggestedFix}\"");
+                    sb.AppendLine($"ISSUE #{issueNumber}:");
+                    sb.AppendLine($"  TYPE: {issue.Type}");
+                    sb.AppendLine($"  SEVERITY: {issue.Severity}");
+                    sb.AppendLine($"  DESCRIPTION: {issue.Description}");
+                    sb.AppendLine($"  FILE: {issue.FilePath}");
+                    sb.AppendLine($"  LINE: {issue.LineNumber}");
+                    
+                    if (issue.Proof != null)
+                    {
+                        sb.AppendLine($"  PROOF:");
+                        sb.AppendLine($"    - Simulated Execution Step: {issue.Proof.SimulatedExecutionStep}");
+                        sb.AppendLine($"    - Trigger: {issue.Proof.Trigger}");
+                        sb.AppendLine($"    - Result: {issue.Proof.Result}");
+                    }
+                    
+                    if (issue.Solution != null)
+                    {
+                        sb.AppendLine($"  SOLUTION:");
+                        sb.AppendLine($"    - Fix: {issue.Solution.Fix}");
+                        sb.AppendLine($"    - Verification: {issue.Solution.Verification}");
+                    }
+                    
+                    sb.AppendLine();
+                    issueNumber++;
                 }
             }
             else
@@ -238,63 +286,94 @@ namespace FluentAI.Services.Analysis
             sb.AppendLine();
 
             // Runtime Issues Detail
+            int globalIssueNumber = 1;
             if (result.RuntimeIssues.Any())
             {
                 sb.AppendLine("RUNTIME ISSUES");
                 sb.AppendLine("══════════════");
+                sb.AppendLine();
                 
-                var groupedIssues = result.RuntimeIssues.GroupBy(i => i.Severity).OrderByDescending(g => g.Key);
-                
-                foreach (var group in groupedIssues)
+                foreach (var issue in result.RuntimeIssues.OrderByDescending(i => i.Severity))
                 {
-                    sb.AppendLine($"\n{group.Key} Severity ({group.Count()} issues):");
-                    sb.AppendLine(new string('─', 40));
+                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
+                    sb.AppendLine($"TYPE: {issue.Type}");
+                    sb.AppendLine($"SEVERITY: {issue.Severity}");
+                    sb.AppendLine($"DESCRIPTION: {issue.Description}");
                     
-                    foreach (var issue in group)
+                    if (issue.Proof != null)
                     {
-                        sb.AppendLine($"• [{issue.Type}] {issue.Description}");
-                        sb.AppendLine($"  Location: {issue.Location}");
-                        sb.AppendLine($"  Fix: {issue.SuggestedFix}");
-                        sb.AppendLine();
+                        sb.AppendLine($"TRIGGER: {issue.Proof.Trigger}");
+                        sb.AppendLine($"EXPECTED: {issue.Proof.SimulatedExecutionStep}");
+                        sb.AppendLine($"ACTUAL (Simulated): {issue.Proof.Result}");
                     }
+                    
+                    if (issue.Solution != null)
+                    {
+                        sb.AppendLine($"SOLUTION: {issue.Solution.Fix}");
+                    }
+                    
+                    sb.AppendLine();
+                    globalIssueNumber++;
                 }
             }
 
-            // Environment Risks
+            // Environment Risks as Issues
             if (result.EnvironmentRisks.Any())
             {
-                sb.AppendLine("ENVIRONMENT RISKS");
-                sb.AppendLine("═════════════════");
+                if (!result.RuntimeIssues.Any())
+                {
+                    sb.AppendLine("ENVIRONMENT RISKS");
+                    sb.AppendLine("═════════════════");
+                    sb.AppendLine();
+                }
                 
                 foreach (var risk in result.EnvironmentRisks.OrderByDescending(r => r.Likelihood))
                 {
-                    sb.AppendLine($"• [{risk.Likelihood} Risk] {risk.Description}");
-                    sb.AppendLine($"  Impact: {risk.Impact}");
-                    if (risk.Mitigation != null)
+                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
+                    sb.AppendLine($"TYPE: Environment");
+                    sb.AppendLine($"SEVERITY: {risk.Likelihood}");
+                    sb.AppendLine($"DESCRIPTION: {risk.Description}");
+                    sb.AppendLine($"TRIGGER: {risk.Component} dependency failure or misconfiguration");
+                    sb.AppendLine($"EXPECTED: Graceful handling of {risk.Component.ToLower()} unavailability");
+                    sb.AppendLine($"ACTUAL (Simulated): Service failure, timeout, or exception");
+                    
+                    if (risk.Mitigation != null && risk.Mitigation.RequiredChanges.Any())
                     {
-                        sb.AppendLine($"  Mitigation: {string.Join(", ", risk.Mitigation.RequiredChanges)}");
-                        if (!string.IsNullOrEmpty(risk.Mitigation.Monitoring))
-                        {
-                            sb.AppendLine($"  Monitoring: {risk.Mitigation.Monitoring}");
-                        }
+                        sb.AppendLine($"SOLUTION: {string.Join("; ", risk.Mitigation.RequiredChanges)}");
                     }
+                    
                     sb.AppendLine();
+                    globalIssueNumber++;
                 }
             }
 
-            // Edge Cases
+            // Edge Cases as Issues
             if (result.EdgeCaseFailures.Any())
             {
-                sb.AppendLine("EDGE CASE FAILURES");
-                sb.AppendLine("══════════════════");
+                if (!result.RuntimeIssues.Any() && !result.EnvironmentRisks.Any())
+                {
+                    sb.AppendLine("EDGE CASE FAILURES");
+                    sb.AppendLine("══════════════════");
+                    sb.AppendLine();
+                }
                 
                 foreach (var failure in result.EdgeCaseFailures.OrderByDescending(f => f.Severity))
                 {
-                    sb.AppendLine($"• [{failure.Severity}] {failure.Scenario}");
-                    sb.AppendLine($"  Input: {failure.Input}");
-                    sb.AppendLine($"  Expected Failure: {failure.ExpectedFailure}");
-                    sb.AppendLine($"  Location: {failure.Location}");
+                    sb.AppendLine($"ISSUE #{globalIssueNumber}:");
+                    sb.AppendLine($"TYPE: EdgeCase");
+                    sb.AppendLine($"SEVERITY: {failure.Severity}");
+                    sb.AppendLine($"DESCRIPTION: {failure.Scenario}");
+                    sb.AppendLine($"TRIGGER: {failure.Input}");
+                    sb.AppendLine($"EXPECTED: {failure.Expected}");
+                    sb.AppendLine($"ACTUAL (Simulated): {failure.Actual}");
+                    
+                    if (!string.IsNullOrEmpty(failure.Fix))
+                    {
+                        sb.AppendLine($"SOLUTION: {failure.Fix}");
+                    }
+                    
                     sb.AppendLine();
+                    globalIssueNumber++;
                 }
             }
 
