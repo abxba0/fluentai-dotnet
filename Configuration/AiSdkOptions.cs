@@ -24,6 +24,37 @@ public class AiSdkOptions
     /// Gets or sets the RAG (Retrieval Augmented Generation) configuration options.
     /// </summary>
     public RagOptions? Rag { get; set; }
+
+    /// <summary>
+    /// Gets or sets the security configuration options.
+    /// </summary>
+    public SecurityOptions? Security { get; set; }
+}
+
+/// <summary>
+/// Security configuration options.
+/// </summary>
+public class SecurityOptions
+{
+    /// <summary>
+    /// Gets or sets the PII detection configuration.
+    /// </summary>
+    public PiiDetectionOptions? PiiDetection { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether input sanitization is enabled.
+    /// </summary>
+    public bool EnableInputSanitization { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether content filtering is enabled.
+    /// </summary>
+    public bool EnableContentFiltering { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets custom security policy rules.
+    /// </summary>
+    public Dictionary<string, object> CustomPolicyRules { get; set; } = new();
 }
 
 /// <summary>
