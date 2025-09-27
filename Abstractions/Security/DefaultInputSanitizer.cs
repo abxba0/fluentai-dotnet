@@ -11,6 +11,7 @@ namespace FluentAI.Abstractions.Security
     public class DefaultInputSanitizer : IInputSanitizer
     {
         private readonly ILogger<DefaultInputSanitizer> _logger;
+        private readonly IPiiDetectionService? _piiDetectionService;
 
         // Common prompt injection patterns
         private static readonly Regex[] PromptInjectionPatterns = new[]
@@ -36,9 +37,10 @@ namespace FluentAI.Abstractions.Security
             "<human>", "</human>", "<assistant>", "</assistant>", "<system>", "</system>"
         };
 
-        public DefaultInputSanitizer(ILogger<DefaultInputSanitizer> logger)
+        public DefaultInputSanitizer(ILogger<DefaultInputSanitizer> logger, IPiiDetectionService? piiDetectionService = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _piiDetectionService = piiDetectionService;
         }
 
         public string SanitizeContent(string content)
@@ -129,6 +131,206 @@ namespace FluentAI.Abstractions.Security
                 DetectedConcerns = concerns.AsReadOnly(),
                 AdditionalInfo = concerns.Any() ? $"Assessment based on {concerns.Count} detected issues" : null
             };
+        }
+
+        public async Task<string> SanitizeContentWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
+        {
+            if (string.IsNullOrEmpty(content))
+            {
+                return content;
+            }
+
+            // First apply standard sanitization
+            var sanitizedContent = SanitizeContent(content);
+
+            // Then apply PII detection and remediation if service is available
+            if (_piiDetectionService != null)
+            {
+                try
+                {
+                    var detectionResult = await _piiDetectionService.ScanAsync(sanitizedContent, piiOptions);
+                    
+                    if (detectionResult.HasPii)
+                    {
+                        _logger.LogInformation("PII detected during sanitization: {DetectionCount} detections", 
+                            detectionResult.Detections.Count);
+
+                        // Apply different remediation strategies based on detected PII
+                        foreach (var detection in detectionResult.Detections)
+                        {
+                            switch (detection.Action)
+                            {
+                                case PiiAction.Block:
+                                    _logger.LogWarning("Content blocked due to PII detection: {Type}", detection.Type);
+                                    return "[CONTENT BLOCKED - PII DETECTED]";
+                                
+                                case PiiAction.Redact:
+                                    sanitizedContent = await _piiDetectionService.RedactAsync(sanitizedContent, detectionResult);
+                                    break;
+                                
+                                case PiiAction.Tokenize:
+                                    sanitizedContent = await _piiDetectionService.TokenizeAsync(sanitizedContent, detectionResult);
+                                    break;
+                                
+                                case PiiAction.Mask:
+                                    sanitizedContent = ApplyMasking(sanitizedContent, detection);
+                                    break;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during PII detection in sanitization");
+                    // Continue with standard sanitized content if PII detection fails
+                }
+            }
+
+            return sanitizedContent;
+        }
+
+        public async Task<bool> IsContentSafeWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
+        {
+            // Check basic content safety first
+            if (!IsContentSafe(content))
+            {
+                return false;
+            }
+
+            // Check PII safety if service is available
+            if (_piiDetectionService != null)
+            {
+                try
+                {
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    
+                    // Content is unsafe if PII should be blocked
+                    if (detectionResult.ShouldBlock)
+                    {
+                        _logger.LogWarning("Content marked unsafe due to PII detection policy");
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during PII safety assessment");
+                    // Fail safe - consider content unsafe if PII check fails
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public async Task<SecurityRiskAssessment> AssessRiskWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
+        {
+            // Start with basic risk assessment
+            var baseAssessment = AssessRisk(content);
+            var concerns = new List<string>(baseAssessment.DetectedConcerns);
+            var riskLevel = baseAssessment.RiskLevel;
+            var additionalInfo = baseAssessment.AdditionalInfo ?? string.Empty;
+
+            // Enhance with PII risk assessment if service is available
+            if (_piiDetectionService != null)
+            {
+                try
+                {
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    
+                    if (detectionResult.HasPii)
+                    {
+                        concerns.Add($"PII detected: {detectionResult.Detections.Count} instances");
+                        
+                        // Escalate risk level based on PII findings
+                        if (detectionResult.OverallRiskLevel > riskLevel)
+                        {
+                            riskLevel = detectionResult.OverallRiskLevel;
+                        }
+
+                        // Add specific PII concerns
+                        foreach (var detection in detectionResult.Detections)
+                        {
+                            concerns.Add($"PII type {detection.Type} detected (confidence: {detection.Confidence:F2})");
+                        }
+
+                        additionalInfo += $" PII risk level: {detectionResult.OverallRiskLevel}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during PII risk assessment");
+                    concerns.Add("PII risk assessment failed - assuming elevated risk");
+                    if (riskLevel < SecurityRiskLevel.Medium)
+                    {
+                        riskLevel = SecurityRiskLevel.Medium;
+                    }
+                }
+            }
+
+            return new SecurityRiskAssessment
+            {
+                RiskLevel = riskLevel,
+                DetectedConcerns = concerns.AsReadOnly(),
+                AdditionalInfo = additionalInfo
+            };
+        }
+
+        private static string ApplyMasking(string content, PiiDetection detection)
+        {
+            var detectedContent = detection.DetectedContent;
+            string maskedContent;
+
+            // Apply different masking strategies based on PII type
+            switch (detection.Type.ToLower())
+            {
+                case "creditcard":
+                    // Show only last 4 digits
+                    maskedContent = detectedContent.Length > 4 
+                        ? "****-****-****-" + detectedContent[^4..] 
+                        : "****";
+                    break;
+                
+                case "ssn":
+                    // Show only last 4 digits in XXX-XX-1234 format
+                    maskedContent = detectedContent.Length >= 4 
+                        ? "XXX-XX-" + detectedContent[^4..] 
+                        : "XXX-XX-XXXX";
+                    break;
+                
+                case "email":
+                    // Show first character and domain
+                    var atIndex = detectedContent.IndexOf('@');
+                    if (atIndex > 0)
+                    {
+                        var domain = detectedContent[(atIndex + 1)..];
+                        maskedContent = $"{detectedContent[0]}***@{domain}";
+                    }
+                    else
+                    {
+                        maskedContent = "***@***.***";
+                    }
+                    break;
+                
+                case "phone":
+                    // Show only last 4 digits
+                    maskedContent = detectedContent.Length >= 4 
+                        ? "***-***-" + detectedContent[^4..] 
+                        : "***-***-****";
+                    break;
+                
+                default:
+                    // Generic masking - show first and last character if long enough
+                    maskedContent = detectedContent.Length switch
+                    {
+                        <= 2 => "***",
+                        <= 4 => detectedContent[0] + "***",
+                        _ => detectedContent[0] + "***" + detectedContent[^1]
+                    };
+                    break;
+            }
+
+            return content.Remove(detection.StartPosition, detection.EndPosition - detection.StartPosition)
+                         .Insert(detection.StartPosition, maskedContent);
         }
     }
 }
