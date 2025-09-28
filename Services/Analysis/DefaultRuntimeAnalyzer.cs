@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using FluentAI.Abstractions.Analysis;
@@ -17,6 +20,8 @@ namespace FluentAI.Services.Analysis
         private readonly ILogger<DefaultRuntimeAnalyzer> _logger;
         private static int _issueIdCounter = 1;
         private static readonly object _counterLock = new object();
+        private static readonly ConcurrentDictionary<string, int[]> _lineIndexCache = new ConcurrentDictionary<string, int[]>();
+        private string? _currentFileHash;
 
         public DefaultRuntimeAnalyzer(ILogger<DefaultRuntimeAnalyzer> logger)
         {
@@ -32,6 +37,10 @@ namespace FluentAI.Services.Analysis
                 throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
 
             _logger.LogDebug("Analyzing source code for file: {FileName}", fileName);
+
+            // Cache line indices for performance optimization
+            _currentFileHash = ComputeFileHash(sourceCode);
+            _lineIndexCache.GetOrAdd(_currentFileHash, _ => BuildLineIndices(sourceCode));
 
             var startTime = DateTime.UtcNow;
             var issues = new List<RuntimeIssue>();
@@ -111,7 +120,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeAsyncVoidMethods(string sourceCode, List<RuntimeIssue> issues)
         {
             var asyncVoidPattern = @"(public|private|internal|protected)?\s*async\s+void\s+\w+\s*\(";
-            var matches = Regex.Matches(sourceCode, asyncVoidPattern);
+            var matches = SafeRegexMatches(sourceCode, asyncVoidPattern);
 
             foreach (Match match in matches)
             {
@@ -121,10 +130,10 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.AsyncVoid,
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Async void methods can cause unhandled exceptions and should return Task instead",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Change 'async void' to 'async Task'",
                     FilePath = "analyzed file",
-                    LineNumber = GetLineNumber(sourceCode, match.Index),
+                    LineNumber = GetLineNumberOptimized(sourceCode, match.Index),
                     Proof = new IssueProof
                     {
                         SimulatedExecutionStep = "Exception handling in async void context",
@@ -145,7 +154,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeMutableStaticFields(string sourceCode, List<RuntimeIssue> issues)
         {
             var staticFieldPattern = @"private\s+static\s+(?!readonly).*List<.*>.*=.*new.*List";
-            var matches = Regex.Matches(sourceCode, staticFieldPattern);
+            var matches = SafeRegexMatches(sourceCode, staticFieldPattern);
 
             foreach (Match match in matches)
             {
@@ -155,10 +164,10 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.MutableStaticField,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Mutable static field can cause thread safety issues and memory leaks",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Consider making the field readonly or using thread-safe collections",
                     FilePath = "analyzed file",
-                    LineNumber = GetLineNumber(sourceCode, match.Index),
+                    LineNumber = GetLineNumberOptimized(sourceCode, match.Index),
                     Proof = new IssueProof
                     {
                         SimulatedExecutionStep = "Concurrent access to mutable static field",
@@ -178,8 +187,8 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeStringConcatenationInLoops(string sourceCode, List<RuntimeIssue> issues)
         {
-            var loopStringConcatPattern = @"(for|while|foreach)\s*\([^)]*\)\s*\{[^}]*\w+\s*\+=\s*[^}]*\}";
-            var matches = Regex.Matches(sourceCode, loopStringConcatPattern, RegexOptions.Singleline);
+            var loopStringConcatPattern = @"(for|while|foreach)\s*\([^)]*\)\s*\{[^}]*?\w+\s*\+=\s*[^}]*?\}";
+            var matches = SafeRegexMatches(sourceCode, loopStringConcatPattern, RegexOptions.Singleline);
 
             foreach (Match match in matches)
             {
@@ -189,7 +198,7 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.StringConcatenation,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "String concatenation in loops can cause performance issues",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Use StringBuilder for efficient string concatenation in loops"
                 });
             }
@@ -202,8 +211,8 @@ namespace FluentAI.Services.Analysis
             var resourcePattern = @"new\s+(FileStream|HttpClient|StreamReader|StreamWriter|SqlConnection)\s*\([^)]*\)";
             var usingPattern = @"using\s*\([^)]*\)|using\s+var\s+\w+\s*=";
             
-            var resourceMatches = Regex.Matches(sourceCode, resourcePattern);
-            var usingMatches = Regex.Matches(sourceCode, usingPattern);
+            var resourceMatches = Regex.Matches(sourceCode, resourcePattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+            var usingMatches = Regex.Matches(sourceCode, usingPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             if (resourceMatches.Count > 0 && usingMatches.Count == 0)
             {
@@ -223,8 +232,8 @@ namespace FluentAI.Services.Analysis
 
         private async Task AnalyzeCollectionModification(string sourceCode, List<RuntimeIssue> issues)
         {
-            var modifyDuringIterationPattern = @"foreach\s*\([^)]*\)\s*\{[^}]*\.Add\([^)]*\)[^}]*\}";
-            var matches = Regex.Matches(sourceCode, modifyDuringIterationPattern, RegexOptions.Singleline);
+            var modifyDuringIterationPattern = @"foreach\s*\([^)]*\)\s*\{[^}]*?\.Add\([^)]*\)[^}]*?\}";
+            var matches = Regex.Matches(sourceCode, modifyDuringIterationPattern, RegexOptions.Singleline | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -234,7 +243,7 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.CollectionModification,
                     Severity = RuntimeIssueSeverity.High,
                     Description = "Collection modification during iteration can cause InvalidOperationException",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Create a separate collection for new items or use for loop with index"
                 });
             }
@@ -245,7 +254,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeLargeObjectAllocation(string sourceCode, List<RuntimeIssue> issues)
         {
             var largeArrayPattern = @"new\s+\w+\[\s*(\d+)\s*\]";
-            var matches = Regex.Matches(sourceCode, largeArrayPattern);
+            var matches = Regex.Matches(sourceCode, largeArrayPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -257,7 +266,7 @@ namespace FluentAI.Services.Analysis
                         Type = RuntimeIssueType.LargeObjectAllocation,
                         Severity = RuntimeIssueSeverity.Medium,
                         Description = "Large object allocation without disposal can impact garbage collection",
-                        Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                        Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                         SuggestedFix = "Consider streaming or chunking data, or implement IDisposable"
                     });
                 }
@@ -269,7 +278,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeConnectionPoolIssues(string sourceCode, List<RuntimeIssue> issues)
         {
             var httpClientPattern = @"new\s+HttpClient\s*\(\s*\)";
-            var matches = Regex.Matches(sourceCode, httpClientPattern);
+            var matches = Regex.Matches(sourceCode, httpClientPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -279,7 +288,7 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.ConnectionPoolExhaustion,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Connection pool exhaustion risk from multiple HttpClient instances",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Use IHttpClientFactory or static HttpClient instance"
                 });
             }
@@ -290,7 +299,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeNullReferenceRisks(string sourceCode, List<RuntimeIssue> issues)
         {
             var nullAssignmentPattern = @"string\s+\w+\s*=\s*null;";
-            var matches = Regex.Matches(sourceCode, nullAssignmentPattern);
+            var matches = Regex.Matches(sourceCode, nullAssignmentPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -300,7 +309,7 @@ namespace FluentAI.Services.Analysis
                     Type = RuntimeIssueType.NullReference,
                     Severity = RuntimeIssueSeverity.Medium,
                     Description = "Null assignment without null checks can cause NullReferenceException",
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     SuggestedFix = "Add null checks before using the variable"
                 });
             }
@@ -311,7 +320,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeDivisionByZero(string sourceCode, List<EdgeCaseFailure> edgeCases)
         {
             var divisionPattern = @"\w+\s*/\s*\w+";
-            var matches = Regex.Matches(sourceCode, divisionPattern);
+            var matches = Regex.Matches(sourceCode, divisionPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -322,7 +331,7 @@ namespace FluentAI.Services.Analysis
                     Scenario = "Division operation without zero check",
                     ExpectedFailure = "DivideByZeroException",
                     Severity = EdgeCaseSeverity.High,
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}"
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}"
                 });
             }
 
@@ -332,7 +341,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeIntParseEdgeCases(string sourceCode, List<EdgeCaseFailure> edgeCases)
         {
             var parsePattern = @"int\.Parse\s*\(\s*\w+\s*\)";
-            var matches = Regex.Matches(sourceCode, parsePattern);
+            var matches = Regex.Matches(sourceCode, parsePattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             foreach (Match match in matches)
             {
@@ -343,7 +352,7 @@ namespace FluentAI.Services.Analysis
                     Scenario = "int.Parse with invalid input",
                     ExpectedFailure = "FormatException",
                     Severity = EdgeCaseSeverity.Medium,
-                    Location = $"Line {GetLineNumber(sourceCode, match.Index)}",
+                    Location = $"Line {GetLineNumberOptimized(sourceCode, match.Index)}",
                     Expected = "Graceful error handling with TryParse",
                     Actual = "FormatException thrown",
                     Fix = "Use int.TryParse instead of int.Parse",
@@ -359,8 +368,8 @@ namespace FluentAI.Services.Analysis
             var asyncMethodPattern = @"async\s+Task\s+\w+\s*\([^)]*\)";
             var cancellationTokenPattern = @"CancellationToken";
             
-            var asyncMethods = Regex.Matches(sourceCode, asyncMethodPattern);
-            var hasCancellationToken = Regex.IsMatch(sourceCode, cancellationTokenPattern);
+            var asyncMethods = Regex.Matches(sourceCode, asyncMethodPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+            var hasCancellationToken = Regex.IsMatch(sourceCode, cancellationTokenPattern, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
             if (asyncMethods.Count > 0 && !hasCancellationToken)
             {
@@ -392,6 +401,67 @@ namespace FluentAI.Services.Analysis
             return lineNumber;
         }
 
+        private int GetLineNumberOptimized(string text, int position)
+        {
+            if (position < 0 || position >= text.Length)
+                return 1;
+
+            if (_currentFileHash != null && _lineIndexCache.TryGetValue(_currentFileHash, out var lineIndices))
+            {
+                // Binary search to find line number
+                int line = Array.BinarySearch(lineIndices, position);
+                return line >= 0 ? line + 1 : ~line;
+            }
+            
+            return GetLineNumber(text, position); // Fallback
+        }
+
+        private string ComputeFileHash(string text)
+        {
+            using var sha256 = SHA256.Create();
+            var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+            return Convert.ToBase64String(hashBytes)[..12]; // Use first 12 chars for cache key
+        }
+
+        private int[] BuildLineIndices(string text)
+        {
+            var lineIndices = new List<int> { 0 }; // Start of first line
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                    lineIndices.Add(i + 1);
+            }
+            return lineIndices.ToArray();
+        }
+
+        private MatchCollection SafeRegexMatches(string input, string pattern, RegexOptions options = RegexOptions.None, TimeSpan? timeout = null)
+        {
+            try
+            {
+                var actualTimeout = timeout ?? TimeSpan.FromSeconds(1);
+                return Regex.Matches(input, pattern, options | RegexOptions.Compiled, actualTimeout);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                _logger.LogWarning("Regex pattern timed out: {Pattern}. Timeout: {Timeout}ms", pattern, timeout?.TotalMilliseconds ?? 1000);
+                return Regex.Matches("", "(?!)"); // Return empty match collection using non-matching pattern
+            }
+        }
+
+        private bool SafeRegexIsMatch(string input, string pattern, RegexOptions options = RegexOptions.None, TimeSpan? timeout = null)
+        {
+            try
+            {
+                var actualTimeout = timeout ?? TimeSpan.FromSeconds(1);
+                return Regex.IsMatch(input, pattern, options | RegexOptions.Compiled, actualTimeout);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                _logger.LogWarning("Regex pattern timed out: {Pattern}. Timeout: {Timeout}ms", pattern, timeout?.TotalMilliseconds ?? 1000);
+                return false;
+            }
+        }
+
         private static int GetNextIssueId()
         {
             lock (_counterLock)
@@ -404,7 +474,7 @@ namespace FluentAI.Services.Analysis
         {
             // Database dependency risks
             var databasePattern = @"ExecuteQuery\s*\(\s*[""'][^""']*[""']\s*\)|SELECT\s+.*\s+FROM|SqlConnection|SqlCommand";
-            if (Regex.IsMatch(sourceCode, databasePattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, databasePattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
@@ -424,7 +494,7 @@ namespace FluentAI.Services.Analysis
 
             // External API risks
             var apiPattern = @"HttpClient|GetStringAsync|PostAsync|PutAsync|DeleteAsync|RestClient";
-            if (Regex.IsMatch(sourceCode, apiPattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, apiPattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
@@ -444,7 +514,7 @@ namespace FluentAI.Services.Analysis
 
             // Configuration risks
             var configPattern = @"ConfigurationManager|IConfiguration|appSettings|connectionString";
-            if (Regex.IsMatch(sourceCode, configPattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, configPattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
