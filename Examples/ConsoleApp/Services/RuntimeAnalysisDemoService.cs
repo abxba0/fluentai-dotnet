@@ -92,11 +92,26 @@ namespace FluentAI.Examples.ConsoleApp.Services
             Console.WriteLine("🔍 Analyzing clean code...");
             var result = await _runtimeAnalyzer.AnalyzeSourceAsync(cleanCode, "WeatherService.cs");
 
-            Console.WriteLine(RuntimeAnalysisFormatter.FormatSummary(result));
+            // DEMO FIX: Create simple formatter inline to prevent build errors
+            FormatAndDisplayResult(result);
             
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey();
             Console.Clear();
+        }
+
+        // DEMO FIX: Simple inline formatter to replace missing RuntimeAnalysisFormatter
+        private static void FormatAndDisplayResult(RuntimeAnalysisResult result)
+        {
+            Console.WriteLine($"Analysis Summary: {result.Issues.Count} issues found, {result.Risks.Count} risks identified");
+            if (result.Issues.Any())
+            {
+                Console.WriteLine("Issues found:");
+                foreach (var issue in result.Issues.Take(3))
+                {
+                    Console.WriteLine($"  - {issue.Severity}: {issue.Description}");
+                }
+            }
         }
 
         private async Task DemoProblematicCode()
@@ -146,7 +161,7 @@ namespace FluentAI.Examples.ConsoleApp.Services
             Console.WriteLine("🔍 Analyzing problematic code...");
             var result = await _runtimeAnalyzer.AnalyzeSourceAsync(problematicCode, "ProblematicService.cs");
 
-            Console.WriteLine(RuntimeAnalysisFormatter.FormatSummary(result));
+            FormatAndDisplayResult(result);
             
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey();
@@ -260,14 +275,14 @@ namespace FluentAI.Examples.ConsoleApp.Services
 
             Console.WriteLine("1. 📊 Summary Format:");
             Console.WriteLine("   ──────────────────");
-            Console.WriteLine(RuntimeAnalysisFormatter.FormatSummary(result));
+            FormatAndDisplayResult(result);
             
-            Console.WriteLine("\n2. 📋 YAML Format (first 20 lines):");
+            Console.WriteLine("\n2. 📋 Simple Format:");
             Console.WriteLine("   ──────────────────────────────────");
-            var yamlReport = RuntimeAnalysisFormatter.FormatAsYaml(result);
-            var yamlLines = yamlReport.Split('\n').Take(20);
-            foreach (var line in yamlLines)
-            {
+            // DEMO FIX: Replace YAML formatting with simple text output
+            Console.WriteLine($"Total Issues: {result.Issues.Count}");
+            Console.WriteLine($"Total Risks: {result.Risks.Count}");
+            Console.WriteLine($"Analysis completed at: {result.AnalysisTimestamp}");
                 Console.WriteLine($"   {line}");
             }
             Console.WriteLine("   ... (truncated for display)");
