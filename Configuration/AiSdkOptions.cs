@@ -71,4 +71,29 @@ public class FailoverOptions
     /// Gets or sets the fallback provider name.
     /// </summary>
     public string? FallbackProvider { get; set; }
+    
+    /// <summary>
+    /// SECURITY FIX: Validates failover configuration to prevent circular dependencies and invalid configurations.
+    /// </summary>
+    public void Validate()
+    {
+        // Prevent circular dependencies
+        if (!string.IsNullOrEmpty(PrimaryProvider) && 
+            !string.IsNullOrEmpty(FallbackProvider) && 
+            string.Equals(PrimaryProvider, FallbackProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Primary and fallback providers cannot be the same to prevent circular dependencies");
+        }
+        
+        // Validate provider names are not empty or whitespace
+        if (PrimaryProvider is not null && string.IsNullOrWhiteSpace(PrimaryProvider))
+        {
+            throw new ArgumentException("Primary provider name cannot be empty or whitespace");
+        }
+        
+        if (FallbackProvider is not null && string.IsNullOrWhiteSpace(FallbackProvider))
+        {
+            throw new ArgumentException("Fallback provider name cannot be empty or whitespace");
+        }
+    }
 }

@@ -18,7 +18,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
     private readonly ConcurrentDictionary<string, string> _tokenCache;
     private readonly ConcurrentDictionary<string, PiiDetectionResult> _resultCache;
 
-    // Built-in PII patterns
+    // Built-in PII patterns - SECURITY FIX: Add timeouts to prevent ReDoS attacks
     private static readonly Dictionary<string, PiiPattern> BuiltInPatterns = new()
     {
         ["CreditCard"] = new()
@@ -26,7 +26,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
             Name = "CreditCard",
             Category = PiiCategory.Financial,
             Pattern = @"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b",
-            CompiledPattern = new Regex(@"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b", RegexOptions.Compiled),
+            CompiledPattern = new Regex(@"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100)),
             Confidence = 0.9,
             DefaultAction = PiiAction.Redact,
             DefaultReplacement = "[CREDIT_CARD]",
@@ -37,7 +37,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
             Name = "SSN",
             Category = PiiCategory.Government,
             Pattern = @"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b|\b(?!000|666|9\d{2})\d{3}(?!00)\d{2}(?!0000)\d{4}\b",
-            CompiledPattern = new Regex(@"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b|\b(?!000|666|9\d{2})\d{3}(?!00)\d{2}(?!0000)\d{4}\b", RegexOptions.Compiled),
+            CompiledPattern = new Regex(@"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b|\b(?!000|666|9\d{2})\d{3}(?!00)\d{2}(?!0000)\d{4}\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100)),
             Confidence = 0.95,
             DefaultAction = PiiAction.Block,
             SupportedRegions = new[] { "US" }
@@ -47,7 +47,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
             Name = "Email",
             Category = PiiCategory.Contact,
             Pattern = @"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-            CompiledPattern = new Regex(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", RegexOptions.Compiled),
+            CompiledPattern = new Regex(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100)),
             Confidence = 0.8,
             DefaultAction = PiiAction.Tokenize
         },
@@ -56,7 +56,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
             Name = "Phone",
             Category = PiiCategory.Contact,
             Pattern = @"\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b",
-            CompiledPattern = new Regex(@"\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b", RegexOptions.Compiled),
+            CompiledPattern = new Regex(@"\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100)),
             Confidence = 0.85,
             DefaultAction = PiiAction.Mask
         }

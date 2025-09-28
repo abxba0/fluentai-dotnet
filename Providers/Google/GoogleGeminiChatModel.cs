@@ -65,8 +65,15 @@ namespace FluentAI.Providers.Google
             var requestDto = PrepareRequest(messages, true, currentOptions, options);
             var httpClient = _httpClientFactory.CreateClient("GoogleClient");
 
-            var requestUri = $"/v1beta/models/{currentOptions.Model}:streamGenerateContent?key={currentOptions.ApiKey}";
-            using var request = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = JsonContent.Create(requestDto) };
+            // SECURITY FIX: Move API key from URL to header to prevent logging exposure
+            var requestUri = $"/v1beta/models/{currentOptions.Model}:streamGenerateContent";
+            using var request = new HttpRequestMessage(HttpMethod.Post, requestUri) 
+            { 
+                Content = JsonContent.Create(requestDto)
+            };
+            
+            // Add API key in header instead of URL
+            request.Headers.Add("X-Goog-Api-Key", currentOptions.ApiKey);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(currentOptions.RequestTimeout);
@@ -184,11 +191,15 @@ namespace FluentAI.Providers.Google
         {
             var httpClient = _httpClientFactory.CreateClient("GoogleClient");
             
-            var requestUri = $"/v1beta/models/{options.Model}:generateContent?key={options.ApiKey}";
+            // SECURITY FIX: Move API key from URL to header to prevent logging exposure
+            var requestUri = $"/v1beta/models/{options.Model}:generateContent";
             using var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
             {
                 Content = JsonContent.Create(requestDto)
             };
+            
+            // Add API key in header instead of URL
+            request.Headers.Add("X-Goog-Api-Key", options.ApiKey);
 
             return await httpClient.SendAsync(request, cancellationToken);
         }

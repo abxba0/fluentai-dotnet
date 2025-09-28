@@ -57,11 +57,14 @@ namespace FluentAI.Extensions
                     var sdkOptions = serviceProvider.GetRequiredService<IOptions<AiSdkOptions>>().Value;
                     var factory = serviceProvider.GetRequiredService<IChatModelFactory>();
 
-                    // Check if failover is configured
+                    // CONFIGURATION FIX: Validate failover configuration to prevent circular dependencies
                     if (sdkOptions.Failover != null && 
                         !string.IsNullOrEmpty(sdkOptions.Failover.PrimaryProvider) && 
                         !string.IsNullOrEmpty(sdkOptions.Failover.FallbackProvider))
                     {
+                        // Validate failover configuration
+                        sdkOptions.Failover.Validate();
+                        
                         var primaryProvider = factory.GetModel(sdkOptions.Failover.PrimaryProvider);
                         var fallbackProvider = factory.GetModel(sdkOptions.Failover.FallbackProvider);
                         var logger = serviceProvider.GetRequiredService<ILogger<FailoverChatModel>>();

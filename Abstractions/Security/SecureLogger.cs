@@ -8,8 +8,9 @@ namespace FluentAI.Abstractions.Security
     /// </summary>
     public static class SecureLogger
     {
-        private static readonly Regex ApiKeyPattern = new(@"(?i)(api[_-]?key|token|secret|password)\s*[=:]\s*([a-zA-Z0-9\-_]{8,})", RegexOptions.Compiled);
-        private static readonly Regex EmailPattern = new(@"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", RegexOptions.Compiled);
+        // SECURITY FIX: Add timeouts to prevent ReDoS attacks
+        private static readonly Regex ApiKeyPattern = new(@"(?i)(api[_-]?key|token|secret|password)\s*[=:]\s*([a-zA-Z0-9\-_]{8,})", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
+        private static readonly Regex EmailPattern = new(@"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
         
         /// <summary>
         /// Masks sensitive information in the given text.
