@@ -188,7 +188,7 @@ namespace FluentAI.Services.Analysis
         private async Task AnalyzeStringConcatenationInLoops(string sourceCode, List<RuntimeIssue> issues)
         {
             var loopStringConcatPattern = @"(for|while|foreach)\s*\([^)]*\)\s*\{[^}]*?\w+\s*\+=\s*[^}]*?\}";
-            var matches = Regex.Matches(sourceCode, loopStringConcatPattern, RegexOptions.Singleline | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+            var matches = SafeRegexMatches(sourceCode, loopStringConcatPattern, RegexOptions.Singleline);
 
             foreach (Match match in matches)
             {
@@ -474,7 +474,7 @@ namespace FluentAI.Services.Analysis
         {
             // Database dependency risks
             var databasePattern = @"ExecuteQuery\s*\(\s*[""'][^""']*[""']\s*\)|SELECT\s+.*\s+FROM|SqlConnection|SqlCommand";
-            if (Regex.IsMatch(sourceCode, databasePattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, databasePattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
@@ -494,7 +494,7 @@ namespace FluentAI.Services.Analysis
 
             // External API risks
             var apiPattern = @"HttpClient|GetStringAsync|PostAsync|PutAsync|DeleteAsync|RestClient";
-            if (Regex.IsMatch(sourceCode, apiPattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, apiPattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
@@ -514,7 +514,7 @@ namespace FluentAI.Services.Analysis
 
             // Configuration risks
             var configPattern = @"ConfigurationManager|IConfiguration|appSettings|connectionString";
-            if (Regex.IsMatch(sourceCode, configPattern, RegexOptions.IgnoreCase))
+            if (SafeRegexIsMatch(sourceCode, configPattern, RegexOptions.IgnoreCase))
             {
                 risks.Add(new EnvironmentRisk
                 {
