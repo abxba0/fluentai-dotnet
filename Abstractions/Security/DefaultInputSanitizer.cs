@@ -148,7 +148,7 @@ namespace FluentAI.Abstractions.Security
             {
                 try
                 {
-                    var detectionResult = await _piiDetectionService.ScanAsync(sanitizedContent, piiOptions);
+                    var detectionResult = await _piiDetectionService.ScanAsync(sanitizedContent, piiOptions).ConfigureAwait(false);
                     
                     if (detectionResult.HasPii)
                     {
@@ -165,11 +165,11 @@ namespace FluentAI.Abstractions.Security
                                     return "[CONTENT BLOCKED - PII DETECTED]";
                                 
                                 case PiiAction.Redact:
-                                    sanitizedContent = await _piiDetectionService.RedactAsync(sanitizedContent, detectionResult);
+                                    sanitizedContent = await _piiDetectionService.RedactAsync(sanitizedContent, detectionResult).ConfigureAwait(false);
                                     break;
                                 
                                 case PiiAction.Tokenize:
-                                    sanitizedContent = await _piiDetectionService.TokenizeAsync(sanitizedContent, detectionResult);
+                                    sanitizedContent = await _piiDetectionService.TokenizeAsync(sanitizedContent, detectionResult).ConfigureAwait(false);
                                     break;
                                 
                                 case PiiAction.Mask:

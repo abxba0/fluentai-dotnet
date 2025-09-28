@@ -26,7 +26,7 @@ namespace FluentAI.Abstractions
         {
             try
             {
-                return await _primaryProvider.GetResponseAsync(messages, options, cancellationToken);
+                return await _primaryProvider.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (IsRetriableError(ex))
             {
@@ -34,7 +34,7 @@ namespace FluentAI.Abstractions
                 
                 try
                 {
-                    var result = await _fallbackProvider.GetResponseAsync(messages, options, cancellationToken);
+                    var result = await _fallbackProvider.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
                     _logger.LogInformation("Failover successful, response received from fallback provider");
                     return result;
                 }
@@ -51,7 +51,7 @@ namespace FluentAI.Abstractions
             // Try primary provider first
             var primaryResult = TryStreamFromProviderAsync(_primaryProvider, "primary", messages, options, cancellationToken);
             
-            await foreach (var result in primaryResult)
+            await foreach (var result in primaryResult.ConfigureAwait(false))
             {
                 if (result.IsSuccess)
                 {
@@ -63,7 +63,7 @@ namespace FluentAI.Abstractions
                     _logger.LogWarning(result.Exception, "Primary provider failed with retriable error during streaming, attempting failover to fallback provider");
                     
                     var fallbackResult = TryStreamFromProviderAsync(_fallbackProvider, "fallback", messages, options, cancellationToken);
-                    await foreach (var fallbackToken in fallbackResult)
+                    await foreach (var fallbackToken in fallbackResult.ConfigureAwait(false))
                     {
                         if (fallbackToken.IsSuccess)
                         {

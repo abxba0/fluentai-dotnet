@@ -28,7 +28,7 @@ namespace FluentAI.Services.Analysis
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<RuntimeAnalysisResult> AnalyzeSourceAsync(string sourceCode, string fileName)
+        public async Task<RuntimeAnalysisResult> AnalyzeSourceAsync(string sourceCode, string fileName, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(sourceCode))
                 throw new ArgumentException("Source code cannot be null or empty", nameof(sourceCode));
@@ -80,7 +80,7 @@ namespace FluentAI.Services.Analysis
             };
         }
 
-        public async Task<RuntimeAnalysisResult> AnalyzeFilesAsync(string[] filePaths)
+        public async Task<RuntimeAnalysisResult> AnalyzeFilesAsync(string[] filePaths, CancellationToken cancellationToken = default)
         {
             if (filePaths == null || filePaths.Length == 0)
                 throw new ArgumentException("File paths cannot be null or empty", nameof(filePaths));
@@ -94,8 +94,8 @@ namespace FluentAI.Services.Analysis
             {
                 if (File.Exists(filePath))
                 {
-                    var content = await File.ReadAllTextAsync(filePath);
-                    var result = await AnalyzeSourceAsync(content, Path.GetFileName(filePath));
+                    var content = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+                    var result = await AnalyzeSourceAsync(content, Path.GetFileName(filePath), cancellationToken).ConfigureAwait(false);
                     
                     allIssues.AddRange(result.RuntimeIssues);
                     allRisks.AddRange(result.EnvironmentRisks);
