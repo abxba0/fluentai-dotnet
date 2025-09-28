@@ -158,12 +158,28 @@ namespace FluentAI.Providers.OpenAI
 
         private ChatResponse ProcessResponse(Azure.AI.OpenAI.ChatCompletions response)
         {
+            // VALIDATION FIX: Add comprehensive response format validation
+            if (response?.Choices == null || !response.Choices.Any())
+                throw new AiSdkException("Invalid response: No response choices returned from OpenAI API");
+
             var choice = response.Choices.FirstOrDefault();
-            if (choice == null)
-                throw new AiSdkException("No response choices returned from OpenAI API");
+            if (choice?.Message == null)
+                throw new AiSdkException("Invalid response: Choice contains no message content");
+
+            // Validate usage information is present
+            if (response.Usage == null)
+            {
+                Logger.LogWarning("OpenAI response missing usage information");
+            }
+
+            // Validate model ID
+            if (string.IsNullOrWhiteSpace(response.Model))
+            {
+                Logger.LogWarning("OpenAI response missing model identification");
+            }
 
             return new ChatResponse(
-                Content: choice.Message?.Content ?? string.Empty,
+                Content: choice.Message.Content ?? string.Empty,
                 ModelId: response.Model ?? "unknown",
                 FinishReason: choice.FinishReason?.ToString() ?? "unknown",
                 Usage: new TokenUsage(
@@ -245,7 +261,19 @@ namespace FluentAI.Providers.OpenAI
 
         public void Dispose()
         {
+            // RESOURCE LEAK FIX: Properly dispose of all resources
             _rateLimiter?.Dispose();
+            
+            // Dispose OpenAI client if it was created and implements IDisposable
+            lock (_clientLock)
+            {
+                if (_lazyClient?.IsValueCreated == true && _lazyClient.Value is IDisposable disposableClient)
+                {
+                    disposableClient.Dispose();
+                }
+                _lazyClient = null;
+                _cachedConfigHash = null;
+            }
         }
 
         // ... (ProcessResponse, ValidateConfiguration, MapRole methods remain the same)
