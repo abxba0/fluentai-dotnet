@@ -13,21 +13,21 @@ namespace FluentAI.Abstractions.Security
         private readonly ILogger<DefaultInputSanitizer> _logger;
         private readonly IPiiDetectionService? _piiDetectionService;
 
-        // Common prompt injection patterns
+        // Common prompt injection patterns - SECURITY FIX: ReDoS vulnerability prevention
         private static readonly Regex[] PromptInjectionPatterns = new[]
         {
-            // Enhanced pattern to catch compound injection phrases like "ignore all previous instructions"
-            new Regex(@"(ignore\s+(?:(?:all|previous|above|prior)\s+)*(?:previous|all|above|prior)\s+(?:instructions?|prompts?|rules?))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(forget\s+(?:everything|all|previous|above))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(act\s+as\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|character|persona))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(system\s*[:]\s*)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(assistant\s*[:]\s*)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(\[/?(?:system|assistant|user)\])", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(simulate\s+(?:being|that you are))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(pretend\s+(?:to be|that you are))", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(roleplay\s+as)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(developer\s+mode)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(jailbreak|dan\s+mode)", RegexOptions.Compiled | RegexOptions.IgnoreCase)
+            // FIXED: Eliminated catastrophic backtracking by removing nested quantifiers
+            new Regex(@"ignore\s+(?:all|previous|above|prior)(?:\s+(?:all|previous|above|prior))?\s+(?:instructions?|prompts?|rules?)", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"forget\s+(?:everything|all|previous|above)", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"act\s+as\s+(?:a\s+)?(?:different|new|another)\s+(?:ai|assistant|character|persona)", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"system\s*:\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"assistant\s*:\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"\[/?(?:system|assistant|user)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"simulate\s+(?:being|that you are)", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"pretend\s+(?:to be|that you are)", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"roleplay\s+as", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"developer\s+mode", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)),
+            new Regex(@"jailbreak|dan\s+mode", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100))
         };
 
         // Suspicious token sequences that might indicate injection attempts
@@ -56,10 +56,10 @@ namespace FluentAI.Abstractions.Security
                 sanitized = sanitized.Replace(token, $"[ESCAPED:{token}]", StringComparison.Ordinal);
             }
 
-            // Normalize excessive whitespace and special characters
-            sanitized = Regex.Replace(sanitized, @"\s{3,}", " ", RegexOptions.Compiled);
+            // SECURITY FIX: Add timeout to prevent ReDoS attacks
+            sanitized = Regex.Replace(sanitized, @"\s{3,}", " ", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
             // Allow escaped tokens to pass through by excluding characters used in escaping and suspicious tokens
-            sanitized = Regex.Replace(sanitized, @"[^\w\s\.,!?;:()\-""'\[\]:<>#|`/]+", "", RegexOptions.Compiled);
+            sanitized = Regex.Replace(sanitized, @"[^\w\s\.,!?;:()\-""'\[\]:<>#|`/]+", "", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
             return sanitized.Trim();
         }
@@ -108,8 +108,8 @@ namespace FluentAI.Abstractions.Security
                 riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, (int)SecurityRiskLevel.Medium);
             }
 
-            // Check for repeated patterns (potential injection)
-            var repeatedPatterns = Regex.Matches(content, @"(.{10,})\1{3,}", RegexOptions.Compiled);
+            // SECURITY FIX: Add timeout to prevent ReDoS attacks  
+            var repeatedPatterns = Regex.Matches(content, @"(.{10,})\1{3,}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
             if (repeatedPatterns.Count > 0)
             {
                 concerns.Add("Repeated patterns detected (potential injection)");
@@ -202,7 +202,8 @@ namespace FluentAI.Abstractions.Security
             {
                 try
                 {
-                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions).ConfigureAwait(false);
                     
                     // Content is unsafe if PII should be blocked
                     if (detectionResult.ShouldBlock)
@@ -235,7 +236,8 @@ namespace FluentAI.Abstractions.Security
             {
                 try
                 {
-                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions).ConfigureAwait(false);
                     
                     if (detectionResult.HasPii)
                     {

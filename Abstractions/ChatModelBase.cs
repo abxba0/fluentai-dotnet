@@ -115,9 +115,17 @@ namespace FluentAI.Abstractions
                     }
                 }
 
+                // PERFORMANCE FIX: Add token-based validation for more accurate limits  
                 totalLength += content.Length;
                 if (totalLength > maxRequestSize)
                     throw new ArgumentException($"Total message content size exceeds the configured limit of {maxRequestSize} characters.");
+
+                // Add token count estimation for better resource management
+                var estimatedTokens = EstimateTokenCount(content);
+                if (estimatedTokens > 8000) // Conservative token limit per message
+                {
+                    Logger.LogWarning("Message exceeds estimated token limit: {EstimatedTokens} tokens", estimatedTokens);
+                }
 
                 validatedMessages.Add(message with { Content = content });
             }
@@ -163,6 +171,28 @@ namespace FluentAI.Abstractions
                 }
             }
             throw lastException ?? new InvalidOperationException("Retry logic completed without a captured exception.");
+        }
+
+        /// <summary>
+        /// PERFORMANCE FIX: Estimates token count for better resource management.
+        /// Uses a simple approximation: ~4 characters per token for English text.
+        /// </summary>
+        /// <param name="text">The text to estimate tokens for.</param>
+        /// <returns>Estimated token count.</returns>
+        protected virtual int EstimateTokenCount(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return 0;
+
+            // Simple estimation: average ~4 characters per token for English
+            // This accounts for punctuation, spaces, and common word patterns
+            var baseTokens = (int)Math.Ceiling(text.Length / 4.0);
+            
+            // Add penalty for special characters and code-like content
+            var specialCharCount = text.Count(c => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c));
+            var specialTokenPenalty = (int)(specialCharCount * 0.3); // Special chars often use more tokens
+            
+            return baseTokens + specialTokenPenalty;
         }
     }
 }

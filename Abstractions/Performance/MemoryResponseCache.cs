@@ -17,14 +17,24 @@ namespace FluentAI.Abstractions.Performance
         private readonly Timer _cleanupTimer;
         private readonly TimeSpan _defaultTtl;
 
+        // PERFORMANCE FIX: Cleanup timer callback should not be async to avoid memory leaks
         public MemoryResponseCache(ILogger<MemoryResponseCache> logger, TimeSpan? defaultTtl = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _defaultTtl = defaultTtl ?? TimeSpan.FromMinutes(30);
             
-            // Run cleanup every 10 minutes
-            _cleanupTimer = new Timer(async _ => await CleanupExpiredEntriesAsync(), null, 
-                TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10));
+            // PERFORMANCE FIX: Use synchronous cleanup to prevent timer-related memory leaks
+            _cleanupTimer = new Timer(_ => 
+            {
+                try
+                {
+                    CleanupExpiredEntriesAsync().GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during cache cleanup");
+                }
+            }, null, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10));
         }
 
         public Task<ChatResponse?> GetAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null)
