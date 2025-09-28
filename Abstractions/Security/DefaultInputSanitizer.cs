@@ -202,7 +202,8 @@ namespace FluentAI.Abstractions.Security
             {
                 try
                 {
-                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions).ConfigureAwait(false);
                     
                     // Content is unsafe if PII should be blocked
                     if (detectionResult.ShouldBlock)
@@ -235,7 +236,8 @@ namespace FluentAI.Abstractions.Security
             {
                 try
                 {
-                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions);
+                    // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+                    var detectionResult = await _piiDetectionService.ScanAsync(content, piiOptions).ConfigureAwait(false);
                     
                     if (detectionResult.HasPii)
                     {

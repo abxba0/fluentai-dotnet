@@ -98,8 +98,8 @@ public class HybridPiiDetectionService : IPiiDetectionService
 
         try
         {
-            // Get patterns to evaluate
-            var patterns = await GetEffectivePatternsAsync(effectiveOptions);
+            // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+            var patterns = await GetEffectivePatternsAsync(effectiveOptions).ConfigureAwait(false);
             var evaluatedPatterns = new List<string>();
 
             foreach (var pattern in patterns)
@@ -194,7 +194,8 @@ public class HybridPiiDetectionService : IPiiDetectionService
         // For binary content, we'd typically need to extract text first
         // This is a simplified implementation
         var textContent = System.Text.Encoding.UTF8.GetString(content);
-        return await ScanAsync(textContent, options);
+        // PERFORMANCE FIX: Add ConfigureAwait(false) to prevent deadlocks in library code
+        return await ScanAsync(textContent, options).ConfigureAwait(false);
     }
 
     public async IAsyncEnumerable<PiiDetectionResult> ScanStreamAsync(IAsyncEnumerable<string> contentStream)
