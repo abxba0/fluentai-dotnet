@@ -48,7 +48,7 @@ namespace FluentAI.Providers.Anthropic
                     ex => ex is HttpRequestException hre && hre.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.InternalServerError or System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout,
                     timeoutCts.Token);
 
-                return ProcessResponse(response);
+                return await ProcessResponseAsync(response).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -208,9 +208,10 @@ namespace FluentAI.Providers.Anthropic
             return await httpClient.SendAsync(request, cancellationToken);
         }
 
-        private ChatResponse ProcessResponse(HttpResponseMessage response)
+        private async Task<ChatResponse> ProcessResponseAsync(HttpResponseMessage response)
         {
-            var content = response.Content.ReadAsStringAsync().Result;
+            // DEADLOCK FIX: Use async/await instead of .Result to prevent blocking
+            var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             using var jsonDoc = JsonDocument.Parse(content);
             var root = jsonDoc.RootElement;
 

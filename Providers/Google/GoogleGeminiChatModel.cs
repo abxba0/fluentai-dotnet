@@ -8,13 +8,19 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace FluentAI.Providers.Google
 {
-    internal class GoogleGeminiChatModel : ChatModelBase
+    internal class GoogleGeminiChatModel : ChatModelBase, IDisposable
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IOptionsMonitor<GoogleOptions> _optionsMonitor;
+        
+        // Rate limiting - CONSISTENCY FIX: Add rate limiting like other providers
+        private FixedWindowRateLimiter? _rateLimiter;
+        private readonly object _rateLimiterLock = new();
+        private string? _cachedRateLimiterConfig;
 
         public GoogleGeminiChatModel(IHttpClientFactory httpClientFactory, IOptionsMonitor<GoogleOptions> optionsMonitor, ILogger<GoogleGeminiChatModel> logger) : base(logger)
         {
@@ -26,6 +32,9 @@ namespace FluentAI.Providers.Google
         {
             var currentOptions = _optionsMonitor.CurrentValue;
             ValidateConfiguration(currentOptions);
+
+            // Rate limiting - CONSISTENCY FIX: Add rate limiting like other providers
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
 
             var requestDto = PrepareRequest(messages, false, currentOptions, options);
 
@@ -40,7 +49,7 @@ namespace FluentAI.Providers.Google
                     ex => ex is HttpRequestException hre && hre.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.InternalServerError or System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout,
                     timeoutCts.Token);
 
-                return ProcessResponse(response);
+                return await ProcessResponseAsync(response).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -62,6 +71,10 @@ namespace FluentAI.Providers.Google
         {
             var currentOptions = _optionsMonitor.CurrentValue;
             ValidateConfiguration(currentOptions);
+            
+            // Rate limiting - CONSISTENCY FIX: Add rate limiting like other providers
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
+            
             var requestDto = PrepareRequest(messages, true, currentOptions, options);
             var httpClient = _httpClientFactory.CreateClient("GoogleClient");
 
@@ -128,13 +141,18 @@ namespace FluentAI.Providers.Google
             return null;
         }
 
+        // CONSISTENCY FIX: Use DataAnnotations validation like other providers
         private void ValidateConfiguration(GoogleOptions options)
         {
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
-                throw new AiSdkConfigurationException("Google API key is required");
-
-            if (string.IsNullOrWhiteSpace(options.Model))
-                throw new AiSdkConfigurationException("Google model is required");
+            // Use DataAnnotations validation
+            var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(options);
+            var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            
+            if (!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(options, validationContext, validationResults, true))
+            {
+                var errors = validationResults.Select(vr => vr.ErrorMessage).Where(msg => msg != null);
+                throw new AiSdkConfigurationException($"Google configuration validation failed: {string.Join(", ", errors)}");
+            }
         }
 
         private object PrepareRequest(IEnumerable<ChatMessage> messages, bool stream, GoogleOptions configOptions, ChatRequestOptions? requestOptions)
@@ -204,9 +222,10 @@ namespace FluentAI.Providers.Google
             return await httpClient.SendAsync(request, cancellationToken);
         }
 
-        private ChatResponse ProcessResponse(HttpResponseMessage response)
+        private async Task<ChatResponse> ProcessResponseAsync(HttpResponseMessage response)
         {
-            var content = response.Content.ReadAsStringAsync().Result;
+            // DEADLOCK FIX: Use async/await instead of .Result to prevent blocking
+            var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             using var jsonDoc = JsonDocument.Parse(content);
             var root = jsonDoc.RootElement;
 
@@ -263,6 +282,67 @@ namespace FluentAI.Providers.Google
                     OutputTokens: outputTokens
                 )
             );
+        }
+
+        // CONSISTENCY FIX: Add rate limiting like other providers
+        private async Task AcquireRateLimitPermitAsync(GoogleOptions options, CancellationToken cancellationToken)
+        {
+            // Only enable rate limiting if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return;
+
+            var rateLimiter = GetOrCreateRateLimiter(options);
+            if (rateLimiter == null)
+                return;
+
+            using var lease = await rateLimiter.AcquireAsync(1, cancellationToken).ConfigureAwait(false);
+            if (!lease.IsAcquired)
+            {
+                Logger.LogWarning("Rate limit exceeded for Google provider. Permit limit: {PermitLimit}, Window: {WindowInSeconds}s", 
+                    options.PermitLimit, options.WindowInSeconds);
+                throw new AiSdkRateLimitException($"Rate limit exceeded. Maximum {options.PermitLimit} requests per {options.WindowInSeconds} seconds.");
+            }
+        }
+
+        // CONSISTENCY FIX: Add rate limiter management like other providers
+        private FixedWindowRateLimiter? GetOrCreateRateLimiter(GoogleOptions options)
+        {
+            // Only create rate limiter if both values are configured
+            if (options.PermitLimit == null || options.WindowInSeconds == null)
+                return null;
+
+            var rateLimiterConfig = $"{options.PermitLimit}|{options.WindowInSeconds}";
+
+            lock (_rateLimiterLock)
+            {
+                // Recreate rate limiter if configuration changed
+                if (_rateLimiter == null || _cachedRateLimiterConfig != rateLimiterConfig)
+                {
+                    // Dispose old rate limiter if exists
+                    _rateLimiter?.Dispose();
+
+                    var rateLimiterOptions = new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.PermitLimit.Value,
+                        Window = TimeSpan.FromSeconds(options.WindowInSeconds.Value),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0 // No queuing, fail immediately if limit exceeded
+                    };
+                    
+                    _rateLimiter = new FixedWindowRateLimiter(rateLimiterOptions);
+                    _cachedRateLimiterConfig = rateLimiterConfig;
+                    Logger.LogInformation("Created rate limiter for Google provider: {PermitLimit} permits per {WindowInSeconds}s", 
+                        options.PermitLimit, options.WindowInSeconds);
+                }
+                
+                return _rateLimiter;
+            }
+        }
+
+        // RESOURCE LEAK FIX: Implement IDisposable for proper resource cleanup
+        public void Dispose()
+        {
+            _rateLimiter?.Dispose();
         }
     }
 }
