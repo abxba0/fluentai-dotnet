@@ -147,7 +147,7 @@ namespace FluentAI.Abstractions
             {
                 try
                 {
-                    return await operation();
+                    return await operation().ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException && isRetriableError(ex))
                 {
@@ -158,7 +158,7 @@ namespace FluentAI.Abstractions
                     Logger.LogWarning("Operation failed with retriable error, retrying in {Delay}ms (attempt {Attempt}/{MaxRetries}): {Error}",
                         delay.TotalMilliseconds, retryCount + 1, maxRetries, ex.Message);
 
-                    await Task.Delay(delay, cancellationToken);
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     retryCount++;
                 }
             }

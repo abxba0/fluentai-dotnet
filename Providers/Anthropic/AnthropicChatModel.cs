@@ -33,7 +33,7 @@ namespace FluentAI.Providers.Anthropic
             ValidateConfiguration(currentOptions);
 
             // Rate limiting
-            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
 
             var requestDto = PrepareRequest(messages, false, currentOptions, options);
 
@@ -72,7 +72,7 @@ namespace FluentAI.Providers.Anthropic
             ValidateConfiguration(currentOptions);
             
             // Rate limiting
-            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
             
             var requestDto = PrepareRequest(messages, true, currentOptions, options);
             var httpClient = _httpClientFactory.CreateClient("AnthropicClient");

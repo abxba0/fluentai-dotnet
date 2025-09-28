@@ -38,7 +38,7 @@ namespace FluentAI.Providers.OpenAI
             ValidateConfiguration(currentOptions);
 
             // Rate limiting
-            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
 
             var client = GetOrCreateClient(currentOptions);
             var chatOptions = PrepareChatOptions(messages, currentOptions, options);
@@ -78,7 +78,7 @@ namespace FluentAI.Providers.OpenAI
             ValidateConfiguration(currentOptions);
 
             // Rate limiting
-            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken);
+            await AcquireRateLimitPermitAsync(currentOptions, cancellationToken).ConfigureAwait(false);
 
             var client = GetOrCreateClient(currentOptions);
             var chatOptions = PrepareChatOptions(messages, currentOptions, options);
@@ -86,9 +86,9 @@ namespace FluentAI.Providers.OpenAI
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(currentOptions.RequestTimeout);
 
-            var streamingResponse = await client.GetChatCompletionsStreamingAsync(chatOptions, timeoutCts.Token);
+            var streamingResponse = await client.GetChatCompletionsStreamingAsync(chatOptions, timeoutCts.Token).ConfigureAwait(false);
 
-            await foreach (var update in streamingResponse.WithCancellation(cancellationToken))
+            await foreach (var update in streamingResponse.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
                 if (!string.IsNullOrEmpty(update.ContentUpdate))
                 {
@@ -100,8 +100,10 @@ namespace FluentAI.Providers.OpenAI
         private OpenAIClient GetOrCreateClient(OpenAiOptions options)
         {
             // Create a hash of critical configuration properties to detect changes
-            // Use secure hash of API key instead of partial content
-            var apiKeyHash = options.ApiKey?.Length > 0 ? options.ApiKey.GetHashCode().ToString() : "empty";
+            // Use secure hash of API key with length and first/last chars only for security
+            var apiKeyHash = options.ApiKey?.Length > 0 
+                ? $"len:{options.ApiKey.Length}" 
+                : "empty";
             var configHash = $"{apiKeyHash}|{options.Endpoint}|{options.IsAzureOpenAI}";
 
             lock (_clientLock)
@@ -198,7 +200,7 @@ namespace FluentAI.Providers.OpenAI
             if (rateLimiter == null)
                 return;
 
-            using var lease = await rateLimiter.AcquireAsync(1, cancellationToken);
+            using var lease = await rateLimiter.AcquireAsync(1, cancellationToken).ConfigureAwait(false);
             if (!lease.IsAcquired)
             {
                 Logger.LogWarning("Rate limit exceeded for OpenAI provider. Permit limit: {PermitLimit}, Window: {WindowInSeconds}s", 
