@@ -51,13 +51,13 @@ public class ChatRoleTests
 
     // TEST #4: Normal case - enum count
     [Fact]
-    public void ChatRole_HasExactlyThreeValues()
+    public void ChatRole_HasExactlyFourValues()
     {
         // INPUT: Count all enum values
-        // EXPECTED: Exactly three values should exist
+        // EXPECTED: Exactly four values should exist (System, User, Assistant, Tool)
         
         var enumValues = Enum.GetValues(typeof(ChatRole));
-        Assert.Equal(3, enumValues.Length);
+        Assert.Equal(4, enumValues.Length);
     }
 
     // TEST #5: Normal case - enum parsing from string
