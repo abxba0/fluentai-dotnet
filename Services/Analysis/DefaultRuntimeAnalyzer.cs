@@ -23,11 +23,16 @@ namespace FluentAI.Services.Analysis
         private static readonly ConcurrentDictionary<string, int[]> _lineIndexCache = new ConcurrentDictionary<string, int[]>();
         private string? _currentFileHash;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultRuntimeAnalyzer"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
         public DefaultRuntimeAnalyzer(ILogger<DefaultRuntimeAnalyzer> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <inheritdoc />
         public async Task<RuntimeAnalysisResult> AnalyzeSourceAsync(string sourceCode, string fileName, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(sourceCode))
@@ -80,6 +85,7 @@ namespace FluentAI.Services.Analysis
             };
         }
 
+        /// <inheritdoc />
         public async Task<RuntimeAnalysisResult> AnalyzeFilesAsync(string[] filePaths, CancellationToken cancellationToken = default)
         {
             if (filePaths == null || filePaths.Length == 0)

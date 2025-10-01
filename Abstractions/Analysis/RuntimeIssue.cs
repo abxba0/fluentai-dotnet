@@ -61,18 +61,69 @@ namespace FluentAI.Abstractions.Analysis
     /// </summary>
     public enum RuntimeIssueType
     {
+        /// <summary>
+        /// Performance-related issue.
+        /// </summary>
         Performance,
+        
+        /// <summary>
+        /// Memory leak issue.
+        /// </summary>
         MemoryLeak,
+        
+        /// <summary>
+        /// Resource management issue.
+        /// </summary>
         ResourceManagement,
+        
+        /// <summary>
+        /// Threading or concurrency issue.
+        /// </summary>
         Threading,
+        
+        /// <summary>
+        /// Async void method issue.
+        /// </summary>
         AsyncVoid,
+        
+        /// <summary>
+        /// Null reference issue.
+        /// </summary>
         NullReference,
+        
+        /// <summary>
+        /// Collection modification during iteration issue.
+        /// </summary>
         CollectionModification,
+        
+        /// <summary>
+        /// String concatenation in loop issue.
+        /// </summary>
         StringConcatenation,
+        
+        /// <summary>
+        /// Large object allocation issue.
+        /// </summary>
         LargeObjectAllocation,
+        
+        /// <summary>
+        /// Connection pool exhaustion issue.
+        /// </summary>
         ConnectionPoolExhaustion,
+        
+        /// <summary>
+        /// Mutable static field issue.
+        /// </summary>
         MutableStaticField,
+        
+        /// <summary>
+        /// Division by zero issue.
+        /// </summary>
         DivisionByZero,
+        
+        /// <summary>
+        /// Unhandled exception issue.
+        /// </summary>
         UnhandledException
     }
 
@@ -81,9 +132,24 @@ namespace FluentAI.Abstractions.Analysis
     /// </summary>
     public enum RuntimeIssueSeverity
     {
+        /// <summary>
+        /// Low severity - minor impact.
+        /// </summary>
         Low,
+        
+        /// <summary>
+        /// Medium severity - moderate impact.
+        /// </summary>
         Medium,
+        
+        /// <summary>
+        /// High severity - significant impact.
+        /// </summary>
         High,
+        
+        /// <summary>
+        /// Critical severity - severe impact requiring immediate attention.
+        /// </summary>
         Critical
     }
 

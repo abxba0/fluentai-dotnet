@@ -48,11 +48,34 @@ namespace FluentAI.Abstractions.Analysis
     /// </summary>
     public enum EnvironmentRiskType
     {
+        /// <summary>
+        /// Configuration-related risk.
+        /// </summary>
         Configuration,
+        
+        /// <summary>
+        /// Dependency-related risk.
+        /// </summary>
         Dependency,
+        
+        /// <summary>
+        /// Security-related risk.
+        /// </summary>
         Security,
+        
+        /// <summary>
+        /// Performance-related risk.
+        /// </summary>
         Performance,
+        
+        /// <summary>
+        /// Compatibility-related risk.
+        /// </summary>
         Compatibility,
+        
+        /// <summary>
+        /// Deployment-related risk.
+        /// </summary>
         Deployment
     }
 
@@ -61,9 +84,24 @@ namespace FluentAI.Abstractions.Analysis
     /// </summary>
     public enum RiskLikelihood
     {
+        /// <summary>
+        /// Low likelihood - unlikely to occur.
+        /// </summary>
         Low,
+        
+        /// <summary>
+        /// Medium likelihood - may occur under certain conditions.
+        /// </summary>
         Medium,
+        
+        /// <summary>
+        /// High likelihood - likely to occur.
+        /// </summary>
         High,
+        
+        /// <summary>
+        /// Critical likelihood - very likely or certain to occur.
+        /// </summary>
         Critical
     }
 

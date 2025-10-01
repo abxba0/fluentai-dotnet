@@ -61,9 +61,24 @@ namespace FluentAI.Abstractions.Analysis
     /// </summary>
     public enum EdgeCaseSeverity
     {
+        /// <summary>
+        /// Low severity - minor impact on edge cases.
+        /// </summary>
         Low,
+        
+        /// <summary>
+        /// Medium severity - moderate impact on edge cases.
+        /// </summary>
         Medium,
+        
+        /// <summary>
+        /// High severity - significant impact on edge cases.
+        /// </summary>
         High,
+        
+        /// <summary>
+        /// Critical severity - severe edge case failure requiring immediate attention.
+        /// </summary>
         Critical
     }
 }

@@ -52,6 +52,11 @@ public class DefaultPiiClassificationEngine : IPiiClassificationEngine
         }
     };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultPiiClassificationEngine"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="options">PII detection options.</param>
     public DefaultPiiClassificationEngine(
         ILogger<DefaultPiiClassificationEngine> logger,
         IOptions<FluentAI.Configuration.PiiDetectionOptions> options)
@@ -60,6 +65,7 @@ public class DefaultPiiClassificationEngine : IPiiClassificationEngine
         _options = options;
     }
 
+    /// <inheritdoc />
     public Task<PiiClassification> ClassifyAsync(PiiDetectionResult detection)
     {
         if (detection == null)
@@ -91,6 +97,7 @@ public class DefaultPiiClassificationEngine : IPiiClassificationEngine
         return Task.FromResult(result);
     }
 
+    /// <inheritdoc />
     public Task<RiskAssessment> AssessRiskAsync(IEnumerable<PiiDetectionResult> detections)
     {
         var allDetections = detections.SelectMany(d => d.Detections).ToList();
@@ -159,6 +166,7 @@ public class DefaultPiiClassificationEngine : IPiiClassificationEngine
         return Task.FromResult(assessment);
     }
 
+    /// <inheritdoc />
     public Task<ComplianceReport> GenerateComplianceReportAsync(IEnumerable<PiiDetectionResult> detections, string profile)
     {
         if (!ComplianceFrameworks.TryGetValue(profile.ToUpper(), out var framework))

@@ -17,7 +17,11 @@ namespace FluentAI.Abstractions.Performance
         private readonly Timer _cleanupTimer;
         private readonly TimeSpan _defaultTtl;
 
-        // PERFORMANCE FIX: Cleanup timer callback should not be async to avoid memory leaks
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MemoryResponseCache"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="defaultTtl">The default time-to-live for cache entries. Defaults to 30 minutes if not specified.</param>
         public MemoryResponseCache(ILogger<MemoryResponseCache> logger, TimeSpan? defaultTtl = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -37,6 +41,7 @@ namespace FluentAI.Abstractions.Performance
             }, null, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10));
         }
 
+        /// <inheritdoc />
         public Task<ChatResponse?> GetAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options = null)
         {
             var key = GenerateCacheKey(messages, options);
@@ -60,6 +65,7 @@ namespace FluentAI.Abstractions.Performance
             return Task.FromResult<ChatResponse?>(null);
         }
 
+        /// <inheritdoc />
         public Task SetAsync(IEnumerable<ChatMessage> messages, ChatRequestOptions? options, ChatResponse response, TimeSpan? ttl = null)
         {
             var key = GenerateCacheKey(messages, options);
@@ -75,6 +81,10 @@ namespace FluentAI.Abstractions.Performance
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Cleans up expired entries from the cache.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
         public Task CleanupExpiredEntriesAsync()
         {
             var now = DateTimeOffset.UtcNow;
@@ -117,6 +127,9 @@ namespace FluentAI.Abstractions.Performance
 
         private record CacheEntry(ChatResponse Response, DateTimeOffset ExpiresAt);
 
+        /// <summary>
+        /// Disposes the cache and releases resources.
+        /// </summary>
         public void Dispose()
         {
             _cleanupTimer?.Dispose();
