@@ -366,6 +366,8 @@ FluentAI.NET follows clean architecture principles with clear separation of conc
 
 ### 📚 **Core Documentation**
 - **[API Reference](docs/API-Reference.md)** - Complete API documentation with examples
+- **[Architecture Guide](docs/architecture.md)** - System design, components, and patterns
+- **[Code Examples](docs/code-examples.md)** - Practical examples for common scenarios
 - **[Security Guide](SECURITY.md)** - Security best practices and compliance
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines and processes
 
@@ -377,9 +379,10 @@ FluentAI.NET follows clean architecture principles with clear separation of conc
 - **[Troubleshooting](docs/integration/troubleshooting.md)** - Common issues and solutions
 
 ### 🔧 **Advanced Topics**
-- **Performance Optimization** - Caching, streaming, memory management
-- **Security Implementation** - Input validation, content filtering
-- **Error Handling** - Resilience patterns, retry logic
+- **[Performance Optimization](docs/code-examples.md#performance-optimization)** - Caching, streaming, memory management
+- **[Security Implementation](docs/code-examples.md#security-features)** - Input validation, content filtering, PII detection
+- **[Error Handling](docs/code-examples.md#error-handling)** - Resilience patterns, retry logic
+- **[RAG Implementation](docs/code-examples.md#rag-retrieval-augmented-generation)** - Document indexing, vector search, context-aware responses
 - **Testing Strategies** - Unit tests, integration tests, mocking
 
 ## 🧪 Examples & Demos
