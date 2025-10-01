@@ -62,6 +62,13 @@ public class HybridPiiDetectionService : IPiiDetectionService
         }
     };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HybridPiiDetectionService"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="configOptions">PII detection configuration options.</param>
+    /// <param name="patternRegistry">The pattern registry for PII detection.</param>
+    /// <param name="classificationEngine">The classification engine for PII analysis.</param>
     public HybridPiiDetectionService(
         ILogger<HybridPiiDetectionService> logger,
         IOptions<Configuration.PiiDetectionOptions> configOptions,
@@ -76,6 +83,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
         _resultCache = new ConcurrentDictionary<string, PiiDetectionResult>();
     }
 
+    /// <inheritdoc />
     public async Task<PiiDetectionResult> ScanAsync(string content, Abstractions.Security.PiiDetectionOptions? options = null)
     {
         if (string.IsNullOrEmpty(content))
@@ -189,6 +197,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
         }
     }
 
+    /// <inheritdoc />
     public async Task<PiiDetectionResult> ScanAsync(byte[] content, string contentType, Abstractions.Security.PiiDetectionOptions? options = null)
     {
         // For binary content, we'd typically need to extract text first
@@ -198,6 +207,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
         return await ScanAsync(textContent, options).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<PiiDetectionResult> ScanStreamAsync(IAsyncEnumerable<string> contentStream)
     {
         await foreach (var content in contentStream)
@@ -206,6 +216,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
         }
     }
 
+    /// <inheritdoc />
     public async Task<string> RedactAsync(string content, PiiDetectionResult detectionResult)
     {
         if (string.IsNullOrEmpty(content) || !detectionResult.HasPii)
@@ -231,6 +242,7 @@ public class HybridPiiDetectionService : IPiiDetectionService
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<string> TokenizeAsync(string content, PiiDetectionResult detectionResult)
     {
         if (string.IsNullOrEmpty(content) || !detectionResult.HasPii)

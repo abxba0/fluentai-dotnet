@@ -13,16 +13,22 @@ namespace FluentAI.Abstractions.Performance
         private readonly ConcurrentDictionary<string, OperationStatsBuilder> _operationStats = new();
         private readonly ConcurrentDictionary<string, long> _counters = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultPerformanceMonitor"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
         public DefaultPerformanceMonitor(ILogger<DefaultPerformanceMonitor> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <inheritdoc />
         public IDisposable StartOperation(string operationName)
         {
             return new OperationTimer(operationName, this, _logger);
         }
 
+        /// <inheritdoc />
         public void RecordMetric(string metricName, double value, Dictionary<string, string>? tags = null)
         {
             var tagsStr = tags?.Any() == true 
@@ -33,6 +39,7 @@ namespace FluentAI.Abstractions.Performance
                 metricName, value, tagsStr);
         }
 
+        /// <inheritdoc />
         public void IncrementCounter(string counterName, int increment = 1, Dictionary<string, string>? tags = null)
         {
             _counters.AddOrUpdate(counterName, increment, (key, existingValue) => existingValue + increment);
@@ -45,6 +52,7 @@ namespace FluentAI.Abstractions.Performance
                 counterName, increment, _counters[counterName], tagsStr);
         }
 
+        /// <inheritdoc />
         public OperationStats? GetOperationStats(string operationName)
         {
             return _operationStats.TryGetValue(operationName, out var statsBuilder) 

@@ -14,6 +14,10 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
     private readonly ConcurrentDictionary<string, PiiPattern> _patterns;
     private readonly ConcurrentDictionary<PiiCategory, List<string>> _categoryIndex;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryPiiPatternRegistry"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
     public InMemoryPiiPatternRegistry(ILogger<InMemoryPiiPatternRegistry> logger)
     {
         _logger = logger;
@@ -24,6 +28,7 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
         InitializeDefaultPatterns();
     }
 
+    /// <inheritdoc />
     public Task RegisterPatternAsync(PiiPattern pattern)
     {
         if (string.IsNullOrEmpty(pattern.Name))
@@ -72,6 +77,7 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
         }
     }
 
+    /// <inheritdoc />
     public Task<IEnumerable<PiiPattern>> GetPatternsAsync(PiiCategory category)
     {
         if (_categoryIndex.TryGetValue(category, out var patternNames))
@@ -91,6 +97,7 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
         return Task.FromResult<IEnumerable<PiiPattern>>(Array.Empty<PiiPattern>());
     }
 
+    /// <inheritdoc />
     public Task<PiiPattern?> GetPatternAsync(string name)
     {
         if (string.IsNullOrEmpty(name))
@@ -112,6 +119,7 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
         return Task.FromResult(pattern);
     }
 
+    /// <inheritdoc />
     public Task UpdatePatternAsync(PiiPattern pattern)
     {
         if (string.IsNullOrEmpty(pattern.Name))
@@ -127,6 +135,7 @@ public class InMemoryPiiPatternRegistry : IPiiPatternRegistry
         return RegisterPatternAsync(pattern); // RegisterPatternAsync handles updates via AddOrUpdate
     }
 
+    /// <inheritdoc />
     public Task RemovePatternAsync(string name)
     {
         if (string.IsNullOrEmpty(name))

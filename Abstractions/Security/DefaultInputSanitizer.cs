@@ -37,12 +37,18 @@ namespace FluentAI.Abstractions.Security
             "<human>", "</human>", "<assistant>", "</assistant>", "<system>", "</system>"
         };
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultInputSanitizer"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="piiDetectionService">Optional PII detection service.</param>
         public DefaultInputSanitizer(ILogger<DefaultInputSanitizer> logger, IPiiDetectionService? piiDetectionService = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _piiDetectionService = piiDetectionService;
         }
 
+        /// <inheritdoc />
         public string SanitizeContent(string content)
         {
             if (string.IsNullOrEmpty(content))
@@ -64,12 +70,14 @@ namespace FluentAI.Abstractions.Security
             return sanitized.Trim();
         }
 
+        /// <inheritdoc />
         public bool IsContentSafe(string content)
         {
             var assessment = AssessRisk(content);
             return !assessment.ShouldBlock;
         }
 
+        /// <inheritdoc />
         public SecurityRiskAssessment AssessRisk(string content)
         {
             if (string.IsNullOrEmpty(content))
@@ -133,6 +141,7 @@ namespace FluentAI.Abstractions.Security
             };
         }
 
+        /// <inheritdoc />
         public async Task<string> SanitizeContentWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
         {
             if (string.IsNullOrEmpty(content))
@@ -189,6 +198,7 @@ namespace FluentAI.Abstractions.Security
             return sanitizedContent;
         }
 
+        /// <inheritdoc />
         public async Task<bool> IsContentSafeWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
         {
             // Check basic content safety first
@@ -223,6 +233,7 @@ namespace FluentAI.Abstractions.Security
             return true;
         }
 
+        /// <inheritdoc />
         public async Task<SecurityRiskAssessment> AssessRiskWithPiiAsync(string content, Abstractions.Security.PiiDetectionOptions? piiOptions = null)
         {
             // Start with basic risk assessment
