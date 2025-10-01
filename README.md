@@ -4,8 +4,10 @@
 [![NuGet](https://img.shields.io/nuget/v/FluentAI.NET.svg)](https://www.nuget.org/packages/FluentAI.NET/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-235%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
+[![Coverage](https://img.shields.io/badge/coverage-87%25-yellow.svg)](docs/AUDIT-EXECUTIVE-SUMMARY.md)
 [![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen.svg)](docs/)
+[![Audit](https://img.shields.io/badge/audit-completed-blue.svg)](docs/AUDIT-EXECUTIVE-SUMMARY.md)
 
 FluentAI.NET is a comprehensive, production-ready SDK that unifies access to multiple AI chat models under a single, elegant API. Built for .NET developers who want enterprise-grade AI capabilities without vendor lock-in or complex configuration.
 
@@ -371,6 +373,12 @@ FluentAI.NET follows clean architecture principles with clear separation of conc
 - **[Security Guide](SECURITY.md)** - Security best practices and compliance
 - **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines and processes
 
+### 📊 **Quality Assurance**
+- **[Audit Executive Summary](docs/AUDIT-EXECUTIVE-SUMMARY.md)** - ⭐ Feature audit results and coverage analysis
+- **[Feature Audit Report](docs/FEATURE-AUDIT-REPORT.md)** - Detailed feature-by-feature verification
+- **[Coverage Remediation Plan](docs/COVERAGE-REMEDIATION-PLAN.md)** - Roadmap to 90%+ coverage
+- **[Feature Checklist](docs/FEATURE-CHECKLIST.md)** - Complete feature tracking and status
+
 ### 🛠️ **Integration Guides**
 - **[Console Applications](docs/integration/console-applications.md)** - Complete setup with DI
 - **[ASP.NET Core](docs/integration/aspnet-core.md)** - Web APIs with middleware
@@ -526,11 +534,19 @@ var response = await chatModel.GetResponseAsync(messages);
 
 ### **Test Suite Overview**
 
-- **235+ Tests** with 90%+ code coverage
+- **Comprehensive Test Suite** with 87% average coverage ([audit report](docs/AUDIT-EXECUTIVE-SUMMARY.md))
 - **Unit Tests**: Fast, isolated tests for all components
 - **Integration Tests**: Real provider testing with API keys
 - **Performance Tests**: Benchmarking and load testing
 - **Security Tests**: Vulnerability and penetration testing
+
+**Coverage by Feature:**
+- Core Chat: 90% ✅
+- Security: 90% ✅
+- RAG: 85-88% ⚠️
+- Performance: 85% ⚠️
+- MCP: 85% ⚠️
+- Analysis: 82% ⚠️
 
 ### **Testing Your Integration**
 
