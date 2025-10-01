@@ -539,6 +539,308 @@ public class ValidationResult
 }
 ```
 
+## RAG-Specific Issues
+
+### Issue: "No documents found in vector database"
+
+**Error Message:**
+```
+RagException: No relevant documents found for query
+```
+
+**Solutions:**
+
+1. **Ensure documents are indexed first**
+   ```csharp
+   var document = new DocumentIndexRequest
+   {
+       Content = "Your document content here",
+       Metadata = new Dictionary<string, object> { ["source"] = "docs" }
+   };
+   
+   await ragService.IndexDocumentAsync(document);
+   ```
+
+2. **Check similarity threshold**
+   ```json
+   {
+     "AiSdk": {
+       "Rag": {
+         "Retrieval": {
+           "SimilarityThreshold": 0.5  // Lower for more results
+         }
+       }
+     }
+   }
+   ```
+
+3. **Verify embedding generation**
+   ```csharp
+   var embeddingGen = serviceProvider.GetService<IEmbeddingGenerator>();
+   if (embeddingGen == null)
+   {
+       throw new Exception("Embedding generator not registered!");
+   }
+   ```
+
+### Issue: "Vector database out of memory"
+
+**Symptoms:**
+- Slow retrieval times
+- OutOfMemoryException
+- Application crashes with large datasets
+
+**Solutions:**
+
+1. **Use persistent vector database**
+   ```csharp
+   services.AddRagServices(Configuration)
+       .AddVectorDatabase<PineconeVectorDatabase>() // Use external DB
+       .AddOpenAiEmbeddings();
+   ```
+
+2. **Configure memory limits**
+   ```json
+   {
+     "AiSdk": {
+       "Rag": {
+         "Performance": {
+           "Caching": {
+             "MaxCacheSize": 1000  // Limit cached embeddings
+           }
+         }
+       }
+     }
+   }
+   ```
+
+3. **Implement chunking strategy**
+   ```csharp
+   var processingOptions = new ProcessingOptions
+   {
+       ChunkSize = 500,        // Smaller chunks
+       Overlap = 50,           // Less overlap
+       Strategy = ChunkingStrategy.FixedSize
+   };
+   ```
+
+## Performance Issues
+
+### Issue: "Slow response times"
+
+**Diagnostic Steps:**
+
+1. **Enable performance monitoring**
+   ```csharp
+   var monitor = serviceProvider.GetRequiredService<IPerformanceMonitor>();
+   
+   using (monitor.StartOperation("chat-completion"))
+   {
+       var response = await chatModel.GenerateResponseAsync(messages);
+   }
+   
+   var stats = monitor.GetOperationStats("chat-completion");
+   Console.WriteLine($"Avg: {stats.AverageDurationMs}ms");
+   ```
+
+2. **Enable response caching**
+   ```csharp
+   services.AddSingleton<IResponseCache, MemoryResponseCache>();
+   
+   // Check cache first
+   var cached = await cache.GetAsync(messages);
+   if (cached != null) return cached;
+   ```
+
+3. **Use streaming for better UX**
+   ```csharp
+   // Instead of waiting for full response
+   await foreach (var token in chatModel.StreamResponseAsync(messages))
+   {
+       Console.Write(token); // Show tokens as they arrive
+   }
+   ```
+
+### Issue: "Rate limit exceeded"
+
+**Error Message:**
+```
+AiProviderException: Rate limit exceeded (429)
+```
+
+**Solutions:**
+
+1. **Implement retry with backoff**
+   ```csharp
+   public async Task<ChatResponse> GenerateWithRetry(
+       IChatModel model,
+       List<ChatMessage> messages,
+       int maxRetries = 3)
+   {
+       for (int i = 0; i < maxRetries; i++)
+       {
+           try
+           {
+               return await model.GenerateResponseAsync(messages);
+           }
+           catch (AiProviderException ex) when (ex.StatusCode == 429)
+           {
+               if (i == maxRetries - 1) throw;
+               
+               var delay = TimeSpan.FromSeconds(Math.Pow(2, i));
+               await Task.Delay(delay);
+           }
+       }
+       throw new InvalidOperationException("Should not reach here");
+   }
+   ```
+
+2. **Configure rate limiting**
+   ```json
+   {
+     "OpenAI": {
+       "RateLimiting": {
+         "MaxRequestsPerMinute": 60,
+         "MaxTokensPerMinute": 90000
+       }
+     }
+   }
+   ```
+
+3. **Use failover to backup provider**
+   ```json
+   {
+     "AiSdk": {
+       "Failover": {
+         "PrimaryProvider": "OpenAI",
+         "FallbackProvider": "Anthropic"
+       }
+     }
+   }
+   ```
+
+## Security Issues
+
+### Issue: "PII detected but not redacted"
+
+**Diagnostic Steps:**
+
+1. **Verify PII service registration**
+   ```csharp
+   var piiService = serviceProvider.GetService<IPiiDetectionService>();
+   if (piiService == null)
+   {
+       services.AddSingleton<IPiiDetectionService, HybridPiiDetectionService>();
+   }
+   ```
+
+2. **Enable PII detection in sanitizer**
+   ```csharp
+   var sanitizer = new DefaultInputSanitizer(logger, piiService);
+   var sanitized = await sanitizer.SanitizeContentWithPiiAsync(userInput);
+   ```
+
+3. **Configure PII action**
+   ```csharp
+   var options = new PiiDetectionOptions
+   {
+       DefaultAction = PiiAction.Redact, // or Tokenize, Mask
+       EnablePatternMatching = true,
+       EnableClassification = true
+   };
+   ```
+
+### Issue: "Content flagged as unsafe incorrectly"
+
+**Solutions:**
+
+1. **Adjust risk thresholds**
+   ```csharp
+   var options = new PiiDetectionOptions
+   {
+       MinimumConfidence = 0.85,  // Higher threshold = fewer false positives
+       EnableContextualAnalysis = true
+   };
+   ```
+
+2. **Review detected concerns**
+   ```csharp
+   var assessment = await sanitizer.AssessRiskWithPiiAsync(content);
+   
+   Console.WriteLine($"Risk: {assessment.RiskLevel}");
+   foreach (var concern in assessment.DetectedConcerns)
+   {
+       Console.WriteLine($"- {concern}");
+   }
+   ```
+
+## Testing Issues
+
+### Issue: "Integration tests fail with real providers"
+
+**Solutions:**
+
+1. **Use environment variables for CI/CD**
+   ```bash
+   # GitHub Actions
+   env:
+     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+   ```
+
+2. **Mock providers for unit tests**
+   ```csharp
+   var mockChatModel = new Mock<IChatModel>();
+   mockChatModel
+       .Setup(x => x.GenerateResponseAsync(
+           It.IsAny<IEnumerable<ChatMessage>>(),
+           It.IsAny<ChatRequestOptions>(),
+           It.IsAny<CancellationToken>()))
+       .ReturnsAsync(new ChatResponse { Content = "Test response" });
+   ```
+
+3. **Use test categories**
+   ```csharp
+   [Fact]
+   [Trait("Category", "Integration")]
+   public async Task Integration_Test_With_Real_Provider()
+   {
+       // Only run when integration tests are enabled
+       if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RUN_INTEGRATION_TESTS")))
+       {
+           return;
+       }
+       
+       // Test with real provider
+   }
+   ```
+
+## Getting Help
+
+If you continue to experience issues:
+
+1. **Check Logs**
+   - Enable debug logging: `"Logging": { "LogLevel": { "FluentAI": "Debug" } }`
+   - Review logs for detailed error messages and stack traces
+
+2. **Search Issues**
+   - Check [GitHub Issues](https://github.com/abxba0/fluentai-dotnet/issues) for similar problems
+
+3. **Create a Bug Report**
+   - Include minimal reproduction code
+   - Provide environment details (.NET version, OS, provider)
+   - Attach relevant log output
+
+4. **Community Support**
+   - Join discussions on [GitHub Discussions](https://github.com/abxba0/fluentai-dotnet/discussions)
+   - Ask questions with full context and error messages
+
+## Related Documentation
+
+- [Code Examples](../code-examples.md)
+- [Architecture Guide](../architecture.md)
+- [API Reference](../API-Reference.md)
+- [Security Guide](../../SECURITY.md)
+
 ### Health Check Endpoint
 
 ```csharp
