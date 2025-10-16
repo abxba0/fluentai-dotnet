@@ -143,7 +143,9 @@ namespace FluentAI.NET.Tests.UnitTests.Analysis
             // Test Summary format
             var summary = RuntimeAnalysisFormatter.FormatSummary(result);
             Assert.NotNull(summary);
-            Assert.Contains("RUNTIME ANALYSIS SUMMARY", summary);
+            // Formatter outputs either "CRITICAL ISSUES DETECTED" or "RUNTIME ANALYSIS COMPLETE"
+            Assert.True(summary.Contains("RUNTIME ANALYSIS COMPLETE") || summary.Contains("CRITICAL ISSUES DETECTED"), 
+                "Summary should contain analysis completion status");
 
             // Test YAML format
             var yaml = RuntimeAnalysisFormatter.FormatAsYaml(result);

@@ -22,7 +22,8 @@ public class ToolExecutionOrchestratorTests
     {
         _mockConnectionPool = new Mock<McpConnectionPool>(
             Mock.Of<IEnumerable<IMcpTransport>>(),
-            Mock.Of<ILogger<McpConnectionPool>>());
+            Mock.Of<ILogger<McpConnectionPool>>(),
+            10); // maxConcurrentConnections parameter
         _mockToolRegistry = new Mock<IToolRegistry>();
         _mockAdapter = new Mock<IToolSchemaAdapter>();
         _mockLogger = new Mock<ILogger<ToolExecutionOrchestrator>>();
@@ -139,14 +140,20 @@ public class ToolExecutionOrchestratorTests
         Assert.Empty(result);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData(null)]
-    public async Task ExecuteToolAsync_WithInvalidToolName_ShouldThrowArgumentException(string invalidToolName)
+    [Fact]
+    public async Task ExecuteToolAsync_WithEmptyToolName_ShouldThrowArgumentException()
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() => 
-            _orchestrator.ExecuteToolAsync(invalidToolName));
+            _orchestrator.ExecuteToolAsync(""));
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_WithNullToolName_ShouldThrowArgumentNullException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() => 
+            _orchestrator.ExecuteToolAsync(null!));
     }
 
     [Fact]

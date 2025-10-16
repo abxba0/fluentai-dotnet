@@ -115,13 +115,24 @@ namespace FluentAI.Abstractions.Security
                 concerns.Add("Content length exceeds safe limits");
                 riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, (int)SecurityRiskLevel.Medium);
             }
-
-            // SECURITY FIX: Add timeout to prevent ReDoS attacks  
-            var repeatedPatterns = Regex.Matches(content, @"(.{10,})\1{3,}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
-            if (repeatedPatterns.Count > 0)
+            else // Only check for repeated patterns if content length is reasonable
             {
-                concerns.Add("Repeated patterns detected (potential injection)");
-                riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, (int)SecurityRiskLevel.Medium);
+                // SECURITY FIX: Add timeout to prevent ReDoS attacks  
+                try
+                {
+                    var repeatedPatterns = Regex.Matches(content, @"(.{10,})\1{3,}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
+                    if (repeatedPatterns.Count > 0)
+                    {
+                        concerns.Add("Repeated patterns detected (potential injection)");
+                        riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, (int)SecurityRiskLevel.Medium);
+                    }
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // If regex times out, treat as potential risk
+                    concerns.Add("Complex pattern detected (regex timeout)");
+                    riskLevel = (SecurityRiskLevel)Math.Max((int)riskLevel, (int)SecurityRiskLevel.Medium);
+                }
             }
 
             var finalRiskLevel = (SecurityRiskLevel)riskLevel;
