@@ -407,6 +407,73 @@ FluentAI.NET follows clean architecture principles with clear separation of conc
 - **[Error Handling](docs/code-examples.md#error-handling)** - Resilience patterns, retry logic
 - **[RAG Implementation](docs/code-examples.md#rag-retrieval-augmented-generation)** - Document indexing, vector search, context-aware responses
 
+## 🛠️ Developer Tools
+
+FluentAI.NET provides comprehensive developer tools for testing, debugging, and rapid prototyping:
+
+### **CLI Tool** 🖥️
+Interactive command-line interface for model testing and benchmarking.
+
+```bash
+cd Tools/FluentAI.CLI
+dotnet run -- chat                    # Interactive chat
+dotnet run -- benchmark               # Performance testing
+dotnet run -- stream                  # Streaming visualization
+dotnet run -- diagnostics test        # Connectivity testing
+```
+
+**Features:**
+- Interactive chat with conversation history
+- Performance benchmarking across models
+- Real-time streaming visualization
+- Configuration management and validation
+- Error diagnostics and troubleshooting
+
+[📖 CLI Tool Documentation](Tools/FluentAI.CLI/README.md)
+
+### **Visual Debugging Dashboard** 📊
+Real-time monitoring dashboard for AI operations.
+
+```bash
+cd Tools/FluentAI.Dashboard
+dotnet run
+# Navigate to https://localhost:5001
+```
+
+**Features:**
+- Real-time token usage tracking
+- Performance and cost metrics
+- Cache hit/miss visualization
+- Memory usage monitoring
+- Auto-refresh dashboard (2s intervals)
+- Test request interface
+
+[📖 Dashboard Documentation](Tools/FluentAI.Dashboard/README.md)
+
+### **Project Templates** 🚀
+Ready-to-use templates for quick integration.
+
+```bash
+# Console Application
+cd Templates/console
+dotnet run
+
+# ASP.NET Core Web API
+cd Templates/webapi
+dotnet run
+# Navigate to https://localhost:5001/swagger
+```
+
+**Available Templates:**
+- **Console App** - Basic chat with configuration management
+- **Web API** - REST endpoints with Swagger documentation
+- **Blazor App** - Coming soon
+- **RAG-Enabled App** - Coming soon
+
+[📖 Templates Documentation](Templates/README.md)
+
+**Comprehensive Guide:** [Developer Tools Guide](docs/tools/developer-tools-guide.md)
+
 ## 🧪 Examples & Demos
 
 ### 🎮 **Interactive Console Demo**
