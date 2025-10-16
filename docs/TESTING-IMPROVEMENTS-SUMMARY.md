@@ -28,7 +28,7 @@ This document summarizes the test coverage improvements made to the FluentAI.NET
    - Matches actual implementation logic
 
 4. **DefaultInputSanitizer Regex Timeout** - Fixed security vulnerability
-   - Added safety check to skip regex pattern detection for oversized content (>50KB)
+   - Added safety check to skip regex pattern detection for oversized content (>50,000 characters)
    - Added try-catch for RegexMatchTimeoutException
    - Prevents DoS attacks via ReDoS (Regular Expression Denial of Service)
 
@@ -95,20 +95,30 @@ This document summarizes the test coverage improvements made to the FluentAI.NET
 **Total Tests Passing:** 25 tests (92.6% success rate)  
 **Estimated Analysis Coverage:** ~88-90% (up from 82%)
 
+*Note: Coverage estimates are based on test scope and code paths covered. Actual coverage percentages pending full coverage report generation with Coverlet.*
+
 ## Current Status by Feature Area
 
 | Feature Area | Previous | Current (Estimated) | Target | Status |
 |--------------|----------|---------------------|--------|--------|
 | **Core Chat** | 90% | 90% | 90% | ✅ **TARGET MET** |
-| **Security** | 90% | 91% | 90% | ✅ **TARGET MET** |
-| **Analysis** | 82% | **~88-90%** | 90% | 🟡 **NEAR TARGET** |
+| **Security** | 90% | ~91% | 90% | ✅ **TARGET MET** |
+| **Analysis** | 82% | **~88-90%** | 90% | 🟡 **NEAR/AT TARGET** |
 | **Performance** | 85% | 85% | 90% | ⚠️ Needs +5% |
 | **RAG** | 85-88% | 85-88% | 90% | ⚠️ Needs +2-5% |
 | **MCP** | 85% | 85% | 90% | ⚠️ Needs +5% |
 
+*Note: Coverage percentages are estimates based on code analysis and test scope. Actual measurements require running Coverlet coverage analysis.*
+
 ## Test Organization
 
 ### Test Structure
+
+**Legend:**
+- `[NEW]` - Newly created test file
+- `[IMPROVED]` - Existing test with significant updates
+- `[FIXED]` - Fixed failing tests
+
 ```
 FluentAI.NET.Tests/
 ├── UnitTests/

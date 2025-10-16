@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-88--90%25-yellowgreen.svg)](docs/TESTING-IMPROVEMENTS-SUMMARY.md)
+[![Coverage](https://img.shields.io/badge/coverage-~89%25-yellowgreen.svg)](docs/TESTING-IMPROVEMENTS-SUMMARY.md)
 [![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen.svg)](docs/)
 [![Audit](https://img.shields.io/badge/audit-completed-blue.svg)](docs/AUDIT-EXECUTIVE-SUMMARY.md)
 
