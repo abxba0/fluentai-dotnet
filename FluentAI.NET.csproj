@@ -55,6 +55,8 @@
 	<ItemGroup>
 		<Compile Remove="FluentAI.NET.Tests/**" />
 		<Compile Remove="Examples/**" />
+		<Compile Remove="Tools/**" />
+		<Compile Remove="Templates/**" />
 	</ItemGroup>
 
 </Project>

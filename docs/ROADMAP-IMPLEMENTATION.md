@@ -618,42 +618,129 @@ public class CustomAiChatModel : ChatModelBase
 }
 ```
 
-### 4.4 CLI for Testing Models ⚠️
+### 4.4 CLI for Testing Models ✅
 
-**Status:** To Be Implemented
+**Status:** Implemented
 
-**Planned Features:**
-- Interactive chat interface
-- Model switching
-- Performance comparison
-- Configuration testing
-- Response streaming visualization
+**Location:** `/Tools/FluentAI.CLI`
 
-### 4.5 Visual Debugging Tools ⚠️
+**Implemented Features:**
+- Interactive chat interface with conversation history
+- Model switching and configuration
+- Performance benchmarking with multiple iterations
+- Configuration management and validation
+- Response streaming visualization with metrics
+- Error diagnostics and connectivity testing
+- Token usage tracking
 
-**Status:** To Be Implemented
+**Usage Example:**
+```bash
+cd Tools/FluentAI.CLI
+dotnet run -- chat --provider OpenAI --model gpt-4
+dotnet run -- benchmark --prompt "Test prompt" --iterations 5
+dotnet run -- stream --prompt "Write a story"
+dotnet run -- config show
+dotnet run -- diagnostics test
+```
 
-**Planned Features:**
+**Key Commands:**
+- `chat` - Interactive chat session
+- `benchmark` - Performance comparison
+- `stream` - Streaming visualization
+- `config` - Configuration management
+- `diagnostics` - System health checks
+
+**Documentation:** [CLI README](../Tools/FluentAI.CLI/README.md)
+
+### 4.5 Visual Debugging Tools ✅
+
+**Status:** Implemented
+
+**Location:** `/Tools/FluentAI.Dashboard`
+
+**Implemented Features:**
 - Real-time token usage visualization
-- Performance dashboard
-- Cache hit/miss visualization
+- Performance metrics dashboard
+- Cache hit/miss visualization with interactive progress bars
 - Memory usage graphs
-- Cost tracking
+- Cost tracking and estimation
+- Success/failure rate monitoring
+- Auto-refresh (2-second intervals)
+- Test request interface for data population
+
+**Usage Example:**
+```bash
+cd Tools/FluentAI.Dashboard
+dotnet run
+# Navigate to https://localhost:5001
+```
+
+**Dashboard Pages:**
+- `/` - Home page with feature overview
+- `/dashboard` - Main metrics dashboard
+- `/test` - Test request interface
+
+**Metrics Tracked:**
+- Total requests and success rates
+- Token usage over time
+- Response time metrics
+- Cache hit/miss statistics
+- Memory consumption
+- Estimated API costs
+
+**Documentation:** [Dashboard README](../Tools/FluentAI.Dashboard/README.md)
 
 ---
 
 ## Phase 5: Developer Experience & Documentation ✅
 
-### 5.1 Dotnet Templates ⚠️
+### 5.1 Dotnet Templates ✅
 
-**Status:** To Be Implemented
+**Status:** Implemented
+
+**Location:** `/Templates`
+
+**Implemented Templates:**
+
+1. **Console Application** (`Templates/console/`)
+   - Basic chat functionality
+   - Configuration management
+   - Error handling
+   - Token usage tracking
+   
+2. **ASP.NET Core Web API** (`Templates/webapi/`)
+   - REST API endpoints
+   - Swagger/OpenAPI documentation
+   - Streaming support
+   - Rate limiting
+   - Production-ready structure
+
+**Usage:**
+```bash
+# Console template
+cd Templates/console
+dotnet run
+
+# Web API template
+cd Templates/webapi
+dotnet run
+# Navigate to https://localhost:5001/swagger
+```
+
+**Features:**
+- Pre-configured dependency injection
+- Multiple AI provider support
+- Environment variable configuration
+- Comprehensive READMEs
+- Production deployment guides
+- Best practices documentation
 
 **Planned Templates:**
-- Console application with FluentAI
-- ASP.NET Core API with FluentAI
-- Blazor app with FluentAI
-- RAG-enabled application
-- Multi-modal application
+- Blazor Web Application (interactive UI)
+- RAG-Enabled Application (document search)
+- Multi-Modal Application (image/audio)
+
+**Documentation:** [Templates README](../Templates/README.md)
 
 ### 5.2 Enhanced Documentation ✅
 
@@ -698,12 +785,16 @@ Performance optimization covered in:
 - Time and distance-based invalidation
 - Middleware pipeline architecture
 - Comprehensive documentation
+- **CLI tool for model testing**
+- **Visual debugging dashboard**
+- **Dotnet project templates (Console, Web API)**
 
 ### ⚠️ In Progress / Future Work
-- CLI tool for model testing
-- Visual debugging dashboard
-- Dotnet project templates
+- Additional Blazor template (interactive UI)
+- RAG-enabled application template
+- Multi-modal application template
 - Additional custom provider examples
+- Template installation as .NET template packages
 
 ### 📊 Quality Metrics
 
