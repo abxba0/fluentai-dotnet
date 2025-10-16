@@ -1,0 +1,65 @@
+﻿@page "/"
+
+<PageTitle>FluentAI.NET Dashboard</PageTitle>
+
+<h1>FluentAI.NET Visual Debugging Dashboard</h1>
+
+<p class="lead">Real-time monitoring and visualization for AI operations</p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-speedometer2"></i> Dashboard</h5>
+                <p class="card-text">
+                    View real-time metrics including token usage, performance, cache statistics, and memory usage.
+                </p>
+                <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-play-circle-fill"></i> Test Requests</h5>
+                <p class="card-text">
+                    Send test requests to your AI models and watch the metrics update in real-time.
+                </p>
+                <a href="/test" class="btn btn-primary">Test Requests</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5>Features</h5>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li><strong>Real-time Token Usage Graphs</strong> - Track token consumption across requests</li>
+                    <li><strong>Performance Metrics</strong> - Monitor response times and throughput</li>
+                    <li><strong>Cache Statistics</strong> - Visualize cache hit/miss rates</li>
+                    <li><strong>Cost Tracking</strong> - Estimate and monitor API costs</li>
+                    <li><strong>Memory Monitoring</strong> - Track application memory usage</li>
+                    <li><strong>Success/Failure Rates</strong> - Monitor request success rates</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col">
+        <div class="alert alert-info">
+            <h5><i class="bi bi-info-circle-fill"></i> Getting Started</h5>
+            <ol>
+                <li>Configure your AI provider API keys in <code>appsettings.json</code></li>
+                <li>Navigate to the <a href="/test">Test Requests</a> page to send test requests</li>
+                <li>View real-time metrics on the <a href="/dashboard">Dashboard</a> page</li>
+            </ol>
+        </div>
+    </div>
+</div>

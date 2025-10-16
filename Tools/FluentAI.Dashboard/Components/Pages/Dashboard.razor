@@ -1,0 +1,207 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@using FluentAI.Dashboard.Services
+@inject MetricsCollector MetricsCollector
+@implements IDisposable
+
+<PageTitle>FluentAI Dashboard</PageTitle>
+
+<h1>FluentAI.NET Monitoring Dashboard</h1>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Total Requests</h5>
+                <h2 class="card-text">@metrics.TotalRequests</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Success Rate</h5>
+                <h2 class="card-text">@metrics.SuccessRate.ToString("F1")%</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Total Tokens</h5>
+                <h2 class="card-text">@metrics.TotalTokensUsed.ToString("N0")</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Estimated Cost</h5>
+                <h2 class="card-text">$@metrics.EstimatedCost.ToString("F4")</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Token Usage Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="tokenChart" height="200"></canvas>
+                @if (metrics.TokenUsageHistory.Any())
+                {
+                    <div class="mt-2">
+                        <small class="text-muted">Last updated: @DateTime.Now.ToString("HH:mm:ss")</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        No token usage data yet. Make some requests to see metrics.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Response Time (ms)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="responseTimeChart" height="200"></canvas>
+                @if (metrics.ResponseTimeHistory.Any())
+                {
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Avg: @metrics.ResponseTimeHistory.Average(x => x.Value).ToString("F0")ms
+                        </small>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        No response time data yet. Make some requests to see metrics.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Cache Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <h6>Cache Hit Rate</h6>
+                        <h3 class="text-success">@metrics.CacheHitRate.ToString("F1")%</h3>
+                    </div>
+                    <div class="col">
+                        <h6>Hits / Misses</h6>
+                        <h3>@metrics.CacheHits / @metrics.CacheMisses</h3>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 30px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: @metrics.CacheHitRate%"
+                         aria-valuenow="@metrics.CacheHitRate" aria-valuemin="0" aria-valuemax="100">
+                        Hits
+                    </div>
+                    <div class="progress-bar bg-danger" role="progressbar"
+                         style="width: @(100 - metrics.CacheHitRate)%"
+                         aria-valuenow="@(100 - metrics.CacheHitRate)" aria-valuemin="0" aria-valuemax="100">
+                        Misses
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>System Resources</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>Memory Usage</h6>
+                    <h3>@metrics.MemoryUsedMB.ToString("F2") MB</h3>
+                </div>
+                <div class="mb-3">
+                    <h6>Request Status</h6>
+                    <div class="row">
+                        <div class="col">
+                            <span class="badge bg-success">@metrics.SuccessfulRequests Successful</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-danger">@metrics.FailedRequests Failed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <button class="btn btn-primary" @onclick="RefreshMetrics">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+    <button class="btn btn-danger" @onclick="ResetMetrics">
+        <i class="bi bi-trash"></i> Reset All Metrics
+    </button>
+</div>
+
+@code {
+    private DashboardMetrics metrics = new();
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        metrics = MetricsCollector.GetCurrentMetrics();
+        MetricsCollector.MetricsUpdated += OnMetricsUpdated;
+        
+        // Auto-refresh every 2 seconds
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(() =>
+            {
+                RefreshMetrics();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void OnMetricsUpdated(object? sender, EventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            RefreshMetrics();
+            StateHasChanged();
+        });
+    }
+
+    private void RefreshMetrics()
+    {
+        metrics = MetricsCollector.GetCurrentMetrics();
+    }
+
+    private void ResetMetrics()
+    {
+        MetricsCollector.Reset();
+        RefreshMetrics();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        MetricsCollector.MetricsUpdated -= OnMetricsUpdated;
+    }
+}

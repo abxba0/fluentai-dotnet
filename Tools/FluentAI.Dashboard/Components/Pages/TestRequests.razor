@@ -1,0 +1,155 @@
+@page "/test"
+@rendermode InteractiveServer
+@using FluentAI.Dashboard.Services
+@using FluentAI.Abstractions
+@using FluentAI.Abstractions.Models
+@inject MetricsCollector MetricsCollector
+@inject IChatModel? ChatModel
+
+<PageTitle>Test Requests</PageTitle>
+
+<h1>Test AI Requests</h1>
+<p>Send test requests to populate the dashboard with metrics.</p>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <div class="mb-3">
+            <label for="prompt" class="form-label">Test Prompt</label>
+            <textarea class="form-control" id="prompt" rows="3" @bind="prompt" placeholder="Enter your test prompt..."></textarea>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Model</label>
+            <select class="form-select" @bind="selectedModel">
+                <option value="gpt-4">GPT-4</option>
+                <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                <option value="gemini-pro">Gemini Pro</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" @onclick="SendRequest" disabled="@isProcessing">
+            @if (isProcessing)
+            {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+            }
+            Send Request
+        </button>
+        
+        <button class="btn btn-secondary ms-2" @onclick="SendMultipleRequests" disabled="@isProcessing">
+            Send 10 Requests
+        </button>
+
+        <button class="btn btn-info ms-2" @onclick="SimulateCacheHit">
+            Simulate Cache Hit
+        </button>
+        
+        <button class="btn btn-warning ms-2" @onclick="SimulateCacheMiss">
+            Simulate Cache Miss
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(lastResponse))
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Last Response</h5>
+        </div>
+        <div class="card-body">
+            <pre style="white-space: pre-wrap;">@lastResponse</pre>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-4" role="alert">
+        @errorMessage
+    </div>
+}
+
+@code {
+    private string prompt = "What is the capital of France?";
+    private string selectedModel = "gpt-4";
+    private bool isProcessing = false;
+    private string lastResponse = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private async Task SendRequest()
+    {
+        isProcessing = true;
+        errorMessage = string.Empty;
+        lastResponse = string.Empty;
+
+        try
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            // Simulate request if no ChatModel is configured
+            if (ChatModel == null)
+            {
+                await Task.Delay(Random.Shared.Next(100, 500));
+                var tokens = Random.Shared.Next(50, 200);
+                stopwatch.Stop();
+                
+                MetricsCollector.RecordRequest(
+                    selectedModel,
+                    tokens,
+                    stopwatch.ElapsedMilliseconds,
+                    true,
+                    tokens * 0.00003 // Simulate cost
+                );
+
+                lastResponse = $"[Simulated Response]\n\nThis is a simulated response for model {selectedModel}.\n" +
+                              $"Tokens used: {tokens}\n" +
+                              $"Response time: {stopwatch.ElapsedMilliseconds}ms\n\n" +
+                              $"Note: Configure API keys to make real requests.";
+            }
+            else
+            {
+                var messages = new[] { new ChatMessage(ChatRole.User, prompt) };
+                var response = await ChatModel.GetResponseAsync(messages);
+                stopwatch.Stop();
+
+                MetricsCollector.RecordRequest(
+                    response.ModelId,
+                    response.Usage?.TotalTokens ?? 0,
+                    stopwatch.ElapsedMilliseconds,
+                    true,
+                    (response.Usage?.TotalTokens ?? 0) * 0.00003
+                );
+
+                lastResponse = response.Content;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            MetricsCollector.RecordRequest(selectedModel, 0, 0, false);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task SendMultipleRequests()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            await SendRequest();
+            await Task.Delay(100);
+        }
+    }
+
+    private void SimulateCacheHit()
+    {
+        MetricsCollector.RecordCacheHit(true);
+    }
+
+    private void SimulateCacheMiss()
+    {
+        MetricsCollector.RecordCacheHit(false);
+    }
+}

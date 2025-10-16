@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FluentAI.Dashboard</RootNamespace>
+    <Description>FluentAI.NET Visual Debugging Dashboard - Real-time monitoring and visualization for AI operations</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FluentAI.NET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazorise.Charts" Version="1.5.3" />
+    <PackageReference Include="Blazorise.Bootstrap5" Version="1.5.3" />
+    <PackageReference Include="Blazorise.Icons.FontAwesome" Version="1.5.3" />
+  </ItemGroup>
+
+</Project>
