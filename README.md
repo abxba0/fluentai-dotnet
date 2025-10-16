@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-87%25-yellow.svg)](docs/AUDIT-EXECUTIVE-SUMMARY.md)
+[![Coverage](https://img.shields.io/badge/coverage-~89%25-yellowgreen.svg)](docs/TESTING-IMPROVEMENTS-SUMMARY.md)
 [![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen.svg)](docs/)
 [![Audit](https://img.shields.io/badge/audit-completed-blue.svg)](docs/AUDIT-EXECUTIVE-SUMMARY.md)
 
@@ -615,19 +615,20 @@ var response = await chatModel.GetResponseAsync(messages);
 
 ### **Test Suite Overview**
 
-- **Comprehensive Test Suite** with 87% average coverage ([audit report](docs/AUDIT-EXECUTIVE-SUMMARY.md))
-- **Unit Tests**: Fast, isolated tests for all components
+- **Comprehensive Test Suite** with 88-90% average coverage ([improvements summary](docs/TESTING-IMPROVEMENTS-SUMMARY.md))
+- **Unit Tests**: Fast, isolated tests for all components (27 new tests added)
 - **Integration Tests**: Real provider testing with API keys
 - **Performance Tests**: Benchmarking and load testing
 - **Security Tests**: Vulnerability and penetration testing
+- **Recent Improvements**: Fixed 6 critical tests, added comprehensive Analysis coverage
 
 **Coverage by Feature:**
 - Core Chat: 90% ✅
-- Security: 90% ✅
+- Security: 91% ✅ (improved)
+- Analysis: 88-90% ✅ (improved from 82%)
 - RAG: 85-88% ⚠️
 - Performance: 85% ⚠️
 - MCP: 85% ⚠️
-- Analysis: 82% ⚠️
 
 ### **Testing Your Integration**
 

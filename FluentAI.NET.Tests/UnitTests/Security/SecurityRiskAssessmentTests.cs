@@ -126,21 +126,22 @@ public class SecurityRiskAssessmentTests
     public void SecurityRiskAssessment_RecordEquality_SameValuesAreEqual()
     {
         // Arrange
+        var concerns = new[] { "Concern1" };
         var assessment1 = new SecurityRiskAssessment
         {
             RiskLevel = SecurityRiskLevel.Medium,
-            DetectedConcerns = new[] { "Concern1" },
+            DetectedConcerns = concerns,
             AdditionalInfo = "Test"
         };
 
         var assessment2 = new SecurityRiskAssessment
         {
             RiskLevel = SecurityRiskLevel.Medium,
-            DetectedConcerns = new[] { "Concern1" },
+            DetectedConcerns = concerns, // Same reference for collection equality
             AdditionalInfo = "Test"
         };
 
-        // Act & Assert
+        // Act & Assert - Records with same property values including collection reference are equal
         Assert.Equal(assessment1, assessment2);
     }
 
